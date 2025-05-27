@@ -768,7 +768,7 @@ export default function FinFlowDemo() {
 			<footer className="bg-gray-900 text-white py-12">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 					<div className="text-xl font-bold mb-4">FinFlow</div>
-					<p className="text-gray-400">© 2024 FinFlow. 강화학습 기반 포트폴리오 최적화 플랫폼</p>
+					<p className="text-gray-400">© 2025 FinFlow. 강화학습 기반 포트폴리오 최적화 플랫폼</p>
 				</div>
 			</footer>
 		</div>
