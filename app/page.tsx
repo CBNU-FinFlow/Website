@@ -222,20 +222,25 @@ export default function FinFlowDemo() {
 
 		// 예상 시간 계산
 		const estimatedTime = method === "fast" ? "5-10초" : "30초-2분";
+		const minDuration = method === "fast" ? 5000 : 15000; // 최소 대기 시간 (ms)
 		console.log(`XAI 분석 시작 (${method} 모드, 예상 시간: ${estimatedTime})`);
 
 		try {
+			// 시작 시간 기록
+			const startTime = Date.now();
+
 			// 진행률 시뮬레이션 (실제 백엔드에서 WebSocket으로 받을 수도 있음)
 			const progressInterval = setInterval(
 				() => {
 					setXaiProgress((prev) => {
-						const increment = method === "fast" ? 10 : 5;
-						return Math.min(prev + increment, 90);
+						const increment = method === "fast" ? 8 : 3;
+						return Math.min(prev + increment, 85);
 					});
 				},
-				method === "fast" ? 500 : 2000
+				method === "fast" ? 600 : 1800
 			);
 
+			// 실제 API 호출
 			const response = await fetch("/api/explain", {
 				method: "POST",
 				headers: {
@@ -249,15 +254,42 @@ export default function FinFlowDemo() {
 				}),
 			});
 
-			clearInterval(progressInterval);
-			setXaiProgress(100);
-
 			if (!response.ok) {
 				throw new Error("XAI 분석에 실패했습니다.");
 			}
 
 			const data = await response.json();
 			console.log("XAI 분석 결과:", data);
+
+			// 경과 시간 계산
+			const elapsedTime = Date.now() - startTime;
+			const remainingTime = Math.max(0, minDuration - elapsedTime);
+
+			// 진행률을 90%로 설정하고 남은 시간 대기
+			clearInterval(progressInterval);
+			setXaiProgress(90);
+
+			if (remainingTime > 0) {
+				console.log(`최소 대기 시간 확보를 위해 ${remainingTime}ms 추가 대기`);
+
+				// 남은 시간 동안 90%에서 100%로 천천히 증가
+				const finalProgressInterval = setInterval(() => {
+					setXaiProgress((prev) => Math.min(prev + 1, 99));
+				}, remainingTime / 10);
+
+				await new Promise((resolve) =>
+					setTimeout(() => {
+						clearInterval(finalProgressInterval);
+						resolve(void 0);
+					}, remainingTime)
+				);
+			}
+
+			// 최종 완료
+			setXaiProgress(100);
+
+			// 완료 후 잠시 대기 (사용자 경험 향상)
+			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			setXaiData(data);
 			setShowXAI(true);

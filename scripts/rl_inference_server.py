@@ -1425,8 +1425,14 @@ async def explain_prediction(request: XAIRequest):
         raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다.")
 
     try:
+        import asyncio
+        import time
+
         method = request.method.lower()
         print(f"XAI 분석 시작: 투자금액={request.investment_amount}, 방식={method}")
+
+        # 시작 시간 기록
+        start_time = time.time()
 
         # 시장 데이터 준비
         market_data = get_market_data_with_context(
@@ -1449,21 +1455,21 @@ async def explain_prediction(request: XAIRequest):
 
         # 계산 방식에 따른 Feature Importance 계산
         if method == "accurate":
-            print("정확한 Perturbation 계산 시작 (예상 1-2분)")
+            print("정확한 분석 계산 시작 (예상 30초-2분)")
             feature_importance = calculate_feature_importance(model, input_tensor)
 
-            # 만약 Perturbation 결과가 모두 0이면 빠른 방법으로 폴백
+            # 만약 결과가 모두 0이면 빠른 방법으로 폴백
             if all(f["importance_score"] == 0.0 for f in feature_importance):
-                print("Perturbation 결과가 모두 0 - 빠른 방법으로 폴백")
+                print("정확한 분석 결과가 모두 0 - 빠른 방법으로 폴백")
                 feature_importance = calculate_feature_importance_fast(
                     model, input_tensor
                 )
         else:  # "fast"
-            print("빠른 근사 Feature Importance 계산 시작 (예상 5-10초)")
+            print("빠른 분석 계산 시작 (예상 5-10초)")
             feature_importance = calculate_feature_importance_fast(model, input_tensor)
 
-        # Attention weights 계산 (빠름)
-        print("Attention Weights 추출 중...")
+        # Attention weights 계산
+        print("자산 간 상관관계 분석 중...")
         attention_weights = extract_attention_weights(model, input_tensor)
 
         # 예측 결과 계산
@@ -1481,7 +1487,18 @@ async def explain_prediction(request: XAIRequest):
             method,
         )
 
-        print(f"XAI 분석 완료! (방식: {method})")
+        # 경과 시간 계산 및 최소 대기 시간 확보
+        elapsed_time = time.time() - start_time
+        min_duration = 3.0 if method == "fast" else 8.0  # 최소 대기 시간 (초)
+
+        if elapsed_time < min_duration:
+            remaining_time = min_duration - elapsed_time
+            print(f"사용자 경험 향상을 위해 {remaining_time:.1f}초 추가 대기")
+            await asyncio.sleep(remaining_time)
+
+        print(
+            f"XAI 분석 완료! (방식: {method}, 총 소요시간: {time.time() - start_time:.1f}초)"
+        )
 
         return XAIResponse(
             feature_importance=[
