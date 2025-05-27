@@ -11,9 +11,11 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { TrendingUp, BarChart3, Users, CheckCircle, Lock, User, AlertCircle, Calendar, Target } from "lucide-react";
+import PortfolioVisualization from "@/components/PortfolioVisualization";
 
 export default function FinFlowDemo() {
 	const [investmentAmount, setInvestmentAmount] = useState("");
+	const [displayAmount, setDisplayAmount] = useState(""); // 콤마가 포함된 표시용
 	const [riskTolerance, setRiskTolerance] = useState("moderate");
 	const [investmentHorizon, setInvestmentHorizon] = useState([252]); // 1년 = 252 거래일
 	const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -30,6 +32,24 @@ export default function FinFlowDemo() {
 	});
 	const [error, setError] = useState<string>("");
 
+	// 투자 금액 포맷팅 함수
+	const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		// 숫자만 추출
+		const numericValue = value.replace(/[^0-9]/g, "");
+
+		// 원본 값 저장 (계산용)
+		setInvestmentAmount(numericValue);
+
+		// 콤마 포맷팅된 값 저장 (표시용)
+		if (numericValue) {
+			const formatted = Number(numericValue).toLocaleString();
+			setDisplayAmount(formatted);
+		} else {
+			setDisplayAmount("");
+		}
+	};
+
 	const getRiskLevel = (risk: string) => {
 		const levels = {
 			conservative: { label: "보수적", color: "text-blue-600", desc: "안정성 중심, 낮은 변동성" },
@@ -40,11 +60,14 @@ export default function FinFlowDemo() {
 	};
 
 	const getHorizonLabel = (days: number) => {
-		if (days <= 90) return "단기 (3개월)";
-		if (days <= 150) return "중단기 (6개월)";
-		if (days <= 300) return "중기 (1년)";
-		if (days <= 550) return "중장기 (2년)";
-		return "장기 (3년+)";
+		// 거래일을 월로 변환 (1개월 ≈ 21 거래일)
+		const months = Math.round(days / 21);
+
+		if (months <= 3) return `단기 (${months}개월)`;
+		if (months <= 6) return `중단기 (${months}개월)`;
+		if (months <= 12) return `중기 (${months}개월)`;
+		if (months <= 24) return `중장기 (${months}개월)`;
+		return `장기 (${months}개월)`;
 	};
 
 	const handleAnalysis = async () => {
@@ -222,7 +245,7 @@ export default function FinFlowDemo() {
 										투자 금액
 									</Label>
 									<div className="flex space-x-4 mt-2">
-										<Input id="investment" type="number" placeholder="1000000" value={investmentAmount} onChange={(e) => setInvestmentAmount(e.target.value)} className="text-lg" />
+										<Input id="investment" type="text" placeholder="1,000,000" value={displayAmount} onChange={handleAmountChange} className="text-lg" />
 										<span className="flex items-center text-lg text-gray-600">원</span>
 									</div>
 								</div>
@@ -307,125 +330,158 @@ export default function FinFlowDemo() {
 								)}
 							</div>
 						</div>
+
+						{/* 오른쪽 영역 - 분석 진행 상황 또는 안내 */}
 						<div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center h-80">
-							<div className="text-gray-400 text-center">
-								<BarChart3 className="h-24 w-24 mx-auto mb-4" />
-								<p>포트폴리오 시각화</p>
-							</div>
+							{isAnalyzing ? (
+								<div className="text-center w-full">
+									<h3 className="text-2xl font-bold text-gray-900 mb-4">AI가 시장을 분석하고 있습니다</h3>
+									<p className="text-gray-600 mb-6">
+										투자 성향: <Badge className="mx-1">{getRiskLevel(riskTolerance).label}</Badge>, 투자 기간: <Badge className="mx-1">{getHorizonLabel(investmentHorizon[0])}</Badge>
+									</p>
+									<Progress value={analysisProgress} className="w-full max-w-md mx-auto mb-4" />
+									<div className="space-y-2 text-sm text-gray-500">
+										<p className="font-medium text-blue-600">{analysisStep}</p>
+										<p className="text-xs">예상 소요 시간: 약 5-7초</p>
+									</div>
+								</div>
+							) : showResults ? (
+								<div className="text-gray-400 text-center">
+									<div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+										<CheckCircle className="w-12 h-12 text-green-500" />
+									</div>
+									<p className="text-lg font-medium text-gray-700">분석 완료!</p>
+									<p className="text-sm mt-2">아래에서 상세 결과를 확인하세요</p>
+								</div>
+							) : (
+								<div className="text-gray-400 text-center">
+									<div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+										<BarChart3 className="w-12 h-12" />
+									</div>
+									<p className="text-lg font-medium">포트폴리오 시각화</p>
+									<p className="text-sm mt-2">분석 완료 후 차트가 표시됩니다</p>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
 			</section>
 
-			{/* Analysis Progress */}
-			{isAnalyzing && (
-				<section className="bg-blue-50 py-12">
-					<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-						<h2 className="text-2xl font-bold text-gray-900 mb-4">AI가 시장을 분석하고 있습니다</h2>
-						<p className="text-gray-600 mb-8">
-							투자 성향: <Badge className="mx-1">{getRiskLevel(riskTolerance).label}</Badge>, 투자 기간: <Badge className="mx-1">{getHorizonLabel(investmentHorizon[0])}</Badge>
-						</p>
-						<Progress value={analysisProgress} className="w-full max-w-md mx-auto" />
-						<div className="mt-4 space-y-2 text-sm text-gray-500">
-							<p className="font-medium text-blue-600">{analysisStep}</p>
-							<p className="text-xs">예상 소요 시간: 약 5-7초</p>
-						</div>
-					</div>
-				</section>
-			)}
-
 			{/* Results Section */}
 			{showResults && (
-				<section className="py-16">
+				<section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
 					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-						<div className="text-center mb-8">
-							<h2 className="text-3xl font-bold text-gray-900 mb-4">AI 추천 포트폴리오 결과</h2>
-							<div className="flex justify-center space-x-4">
-								<Badge variant="outline">{getRiskLevel(riskTolerance).label} 투자 성향</Badge>
-								<Badge variant="outline">{getHorizonLabel(investmentHorizon[0])}</Badge>
+						<div className="text-center mb-12">
+							<h2 className="text-4xl font-bold text-gray-900 mb-6">AI 추천 포트폴리오 결과</h2>
+							<div className="flex justify-center space-x-4 mb-4">
+								<Badge variant="outline" className="bg-white">
+									{getRiskLevel(riskTolerance).label} 투자 성향
+								</Badge>
+								<Badge variant="outline" className="bg-white">
+									{getHorizonLabel(investmentHorizon[0])}
+								</Badge>
 							</div>
+							<p className="text-lg text-gray-600">
+								총 투자금액: <span className="font-bold text-blue-600">{Number.parseInt(investmentAmount).toLocaleString()}원</span>
+							</p>
 						</div>
 
-						{/* Portfolio Allocation */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-							<Card>
-								<CardHeader>
-									<CardTitle>추천 포트폴리오 배분</CardTitle>
-									<CardDescription>총 투자금액: {Number.parseInt(investmentAmount).toLocaleString()}원</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="space-y-4">
-										{portfolioAllocation.map((item, index) => (
-											<div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-												<div className="flex items-center space-x-3">
-													<Badge variant={item.stock === "현금" ? "secondary" : "default"}>{item.stock}</Badge>
-													<span className="font-medium">{item.percentage}%</span>
-												</div>
-												<span className="text-gray-600 font-medium">{item.amount.toLocaleString()}원</span>
-											</div>
-										))}
+						{/* 시각화 차트 섹션 */}
+						<div className="mb-12">
+							<PortfolioVisualization portfolioAllocation={portfolioAllocation} performanceMetrics={performanceMetrics} showResults={showResults} />
+						</div>
+
+						{/* 요약 지표 카드들 */}
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+							<Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div>
+											<p className="text-sm font-medium text-gray-600">연간 수익률</p>
+											<p className="text-3xl font-bold text-green-600">{quickMetrics.annualReturn}</p>
+										</div>
+										<div className="p-3 bg-green-100 rounded-full">
+											<TrendingUp className="h-6 w-6 text-green-600" />
+										</div>
 									</div>
 								</CardContent>
 							</Card>
 
-							<Card>
-								<CardHeader>
-									<CardTitle>예상 성과 지표</CardTitle>
-									<CardDescription>AI 모델 기반 예상 포트폴리오 성과</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="grid grid-cols-2 gap-4">
-										<div className="p-4 bg-green-50 rounded-lg">
-											<p className="text-sm text-gray-600">연간 수익률</p>
-											<p className="text-2xl font-bold text-green-600">{quickMetrics.annualReturn}</p>
+							<Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div>
+											<p className="text-sm font-medium text-gray-600">샤프 비율</p>
+											<p className="text-3xl font-bold text-blue-600">{quickMetrics.sharpeRatio}</p>
 										</div>
-										<div className="p-4 bg-blue-50 rounded-lg">
-											<p className="text-sm text-gray-600">샤프 비율</p>
-											<p className="text-2xl font-bold text-blue-600">{quickMetrics.sharpeRatio}</p>
-										</div>
-										<div className="p-4 bg-red-50 rounded-lg">
-											<p className="text-sm text-gray-600">최대 낙폭</p>
-											<p className="text-2xl font-bold text-red-600">{quickMetrics.maxDrawdown}</p>
-										</div>
-										<div className="p-4 bg-purple-50 rounded-lg">
-											<p className="text-sm text-gray-600">변동성</p>
-											<p className="text-2xl font-bold text-purple-600">{quickMetrics.volatility}</p>
+										<div className="p-3 bg-blue-100 rounded-full">
+											<BarChart3 className="h-6 w-6 text-blue-600" />
 										</div>
 									</div>
-									<p className="text-xs text-gray-500 mt-4">*과거 백테스트 기반 예상 수치이며, 실제 결과는 다를 수 있습니다.</p>
+								</CardContent>
+							</Card>
+
+							<Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div>
+											<p className="text-sm font-medium text-gray-600">최대 낙폭</p>
+											<p className="text-3xl font-bold text-red-600">{quickMetrics.maxDrawdown}</p>
+										</div>
+										<div className="p-3 bg-red-100 rounded-full">
+											<AlertCircle className="h-6 w-6 text-red-600" />
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							<Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div>
+											<p className="text-sm font-medium text-gray-600">변동성</p>
+											<p className="text-3xl font-bold text-purple-600">{quickMetrics.volatility}</p>
+										</div>
+										<div className="p-3 bg-purple-100 rounded-full">
+											<Target className="h-6 w-6 text-purple-600" />
+										</div>
+									</div>
 								</CardContent>
 							</Card>
 						</div>
 
-						{/* Performance Metrics Table */}
-						<Card>
+						{/* 상세 성과 비교 테이블 */}
+						<Card className="bg-white shadow-lg">
 							<CardHeader>
-								<CardTitle>상세 성과 비교</CardTitle>
-								<CardDescription>AI 포트폴리오 vs 벤치마크 지수 비교</CardDescription>
+								<CardTitle className="text-2xl">상세 성과 비교</CardTitle>
+								<CardDescription className="text-lg">AI 포트폴리오 vs 벤치마크 지수 비교</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="overflow-x-auto">
 									<table className="w-full border-collapse">
 										<thead>
-											<tr className="border-b">
-												<th className="text-left py-3 px-4 font-medium">지표</th>
-												<th className="text-center py-3 px-4 font-medium text-blue-600">AI 포트폴리오</th>
-												<th className="text-center py-3 px-4 font-medium">SPY</th>
-												<th className="text-center py-3 px-4 font-medium">QQQ</th>
+											<tr className="border-b-2 border-gray-200">
+												<th className="text-left py-4 px-6 font-semibold text-gray-700">지표</th>
+												<th className="text-center py-4 px-6 font-semibold text-blue-600">AI 포트폴리오</th>
+												<th className="text-center py-4 px-6 font-semibold text-gray-600">SPY</th>
+												<th className="text-center py-4 px-6 font-semibold text-gray-600">QQQ</th>
 											</tr>
 										</thead>
 										<tbody>
 											{performanceMetrics.map((metric, index) => (
-												<tr key={index} className="border-b hover:bg-gray-50">
-													<td className="py-3 px-4 font-medium">{metric.label}</td>
-													<td className="py-3 px-4 text-center font-bold text-blue-600">{metric.portfolio}</td>
-													<td className="py-3 px-4 text-center text-gray-500">{metric.spy}</td>
-													<td className="py-3 px-4 text-center text-gray-500">{metric.qqq}</td>
+												<tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+													<td className="py-4 px-6 font-medium text-gray-900">{metric.label}</td>
+													<td className="py-4 px-6 text-center font-bold text-blue-600 text-lg">{metric.portfolio}</td>
+													<td className="py-4 px-6 text-center text-gray-500">{metric.spy}</td>
+													<td className="py-4 px-6 text-center text-gray-500">{metric.qqq}</td>
 												</tr>
 											))}
 										</tbody>
 									</table>
 								</div>
+								<p className="text-sm text-gray-500 mt-6 p-4 bg-gray-50 rounded-lg">
+									<strong>참고:</strong> 과거 백테스트 기반 예상 수치이며, 실제 결과는 다를 수 있다. 투자 결정 시 다양한 요소를 종합적으로 고려해야 한다.
+								</p>
 							</CardContent>
 						</Card>
 					</div>
