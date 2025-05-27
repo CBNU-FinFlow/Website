@@ -17,8 +17,8 @@ import torch
 import yfinance as yf
 from datetime import datetime, timedelta
 
-# finflow-rl 프로젝트 경로 추가 (실제 경로로 수정 필요)
-RL_PROJECT_PATH = "../finflow-rl"
+# RL 프로젝트 경로 설정
+RL_PROJECT_PATH = os.path.join(os.path.dirname(__file__), "models")
 if os.path.exists(RL_PROJECT_PATH):
     sys.path.append(RL_PROJECT_PATH)
 
@@ -67,24 +67,19 @@ def load_model():
     """강화학습 모델 로드"""
     global model, env, scaler
 
-    try:
-        # 실제 finflow-rl 프로젝트의 모델 로드 로직
-        # 여기서는 예시로 간단한 구조를 보여준다
+    # 모델 로드
+    model_path = os.path.join(RL_PROJECT_PATH, "best_model.pth")
 
-        # 모델 파일 경로 (실제 경로로 수정 필요)
-        model_path = os.path.join(RL_PROJECT_PATH, "models", "best_model.pth")
-
-        if os.path.exists(model_path):
-            # PyTorch 모델 로드
+    if os.path.exists(model_path):
+        try:
             model = torch.load(model_path, map_location="cpu")
             model.eval()
             print(f"모델 로드 완료: {model_path}")
-        else:
-            print(f"모델 파일을 찾을 수 없음: {model_path}")
+        except Exception as e:
+            print(f"모델 로드 실패: {e}")
             model = None
-
-    except Exception as e:
-        print(f"모델 로드 실패: {e}")
+    else:
+        print(f"모델 파일을 찾을 수 없음: {model_path}")
         model = None
 
 

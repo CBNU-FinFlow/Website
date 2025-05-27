@@ -74,13 +74,15 @@ python rl_inference_server.py
 git clone https://github.com/reo91004/finflow-rl.git
 ```
 
-2. `scripts/rl_inference_server.py`에서 `RL_PROJECT_PATH` 변수를 실제 경로로 수정한다:
+2. `scripts/models` 디렉토리에 모델 파일을 넣는다:
 
-```python
-RL_PROJECT_PATH = "/path/to/finflow-rl"
-```
+   - `best_model.pth` 파일을 `scripts/models` 디렉토리에 복사
 
-3. finflow-rl 프로젝트에서 모델을 학습하고 `models/best_model.pth` 파일을 생성한다.
+3. RL 추론 서버를 실행한다:
+   ```bash
+   cd scripts
+   ./start_rl_server.sh
+   ```
 
 ## 사용법
 
