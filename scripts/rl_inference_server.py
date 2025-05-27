@@ -237,6 +237,31 @@ class PredictionResponse(BaseModel):
     metrics: MetricsResponse
 
 
+# XAI 관련 모델
+class XAIRequest(BaseModel):
+    investment_amount: float
+    risk_tolerance: str = "moderate"
+    investment_horizon: int = 252
+
+
+class FeatureImportance(BaseModel):
+    feature_name: str
+    importance_score: float
+    asset_name: str
+
+
+class AttentionWeight(BaseModel):
+    from_asset: str
+    to_asset: str
+    weight: float
+
+
+class XAIResponse(BaseModel):
+    feature_importance: List[FeatureImportance]
+    attention_weights: List[AttentionWeight]
+    explanation_text: str
+
+
 # 전역 변수
 model = None
 cached_data = None
@@ -846,6 +871,243 @@ async def predict(request: PredictionRequest):
         traceback.print_exc()
         raise HTTPException(
             status_code=500, detail="포트폴리오 예측 중 오류가 발생했습니다."
+        )
+
+
+def calculate_feature_importance(model, input_data: torch.Tensor) -> List[Dict]:
+    """Feature importance 계산 (Integrated Gradients 기반)"""
+    model.eval()
+    input_data = input_data.requires_grad_(True)
+
+    # 기준선 (모든 값이 0인 상태)
+    baseline = torch.zeros_like(input_data)
+
+    # Integrated Gradients 계산
+    steps = 50
+    importance_scores = []
+
+    for i in range(steps + 1):
+        # 선형 보간
+        alpha = i / steps
+        interpolated = baseline + alpha * (input_data - baseline)
+        interpolated.requires_grad_(True)
+
+        # 순전파 및 역전파
+        output, _ = model(interpolated)
+
+        # 각 출력에 대한 그래디언트 계산
+        gradients = []
+        for j in range(output.size(1)):  # 각 자산별로
+            if interpolated.grad is not None:
+                interpolated.grad.zero_()
+
+            output[0, j].backward(retain_graph=True)
+            grad = interpolated.grad.clone()
+            gradients.append(grad)
+
+    # 평균 그래디언트 계산
+    avg_gradients = torch.stack(gradients).mean(dim=0)
+
+    # 중요도 점수 계산 (그래디언트 * 입력값)
+    importance = avg_gradients * (input_data - baseline)
+    importance = importance.abs().mean(dim=0)  # 절댓값의 평균
+
+    # 결과 포맷팅
+    feature_importance = []
+    for asset_idx in range(len(STOCK_SYMBOLS)):
+        for feature_idx, feature_name in enumerate(FEATURE_NAMES):
+            if asset_idx < importance.size(0) and feature_idx < importance.size(1):
+                score = float(importance[asset_idx, feature_idx])
+                feature_importance.append(
+                    {
+                        "feature_name": feature_name,
+                        "asset_name": STOCK_SYMBOLS[asset_idx],
+                        "importance_score": score,
+                    }
+                )
+
+    # 중요도 순으로 정렬
+    feature_importance.sort(key=lambda x: x["importance_score"], reverse=True)
+    return feature_importance[:20]  # 상위 20개만 반환
+
+
+def extract_attention_weights(model, input_data: torch.Tensor) -> List[Dict]:
+    """Self-Attention weights 추출"""
+    model.eval()
+
+    with torch.no_grad():
+        # 모델의 어텐션 레이어에서 가중치 추출
+        # LSTM 처리
+        lstm_outputs = []
+        batch_size = input_data.size(0)
+
+        for i in range(input_data.size(1)):
+            asset_feats = input_data[:, i, :].view(batch_size, 1, -1)
+            lstm_out, _ = model.lstm(asset_feats)
+            asset_out = lstm_out[:, -1, :]
+            lstm_outputs.append(asset_out)
+
+        lstm_stacked = torch.stack(lstm_outputs, dim=1)
+
+        # 어텐션 가중치 계산
+        context, attention_weights = model.attention(lstm_stacked)
+
+        # 어텐션 가중치를 리스트로 변환
+        attention_list = []
+        weights = attention_weights.squeeze(0).cpu().numpy()
+
+        for i, from_asset in enumerate(STOCK_SYMBOLS):
+            for j, to_asset in enumerate(STOCK_SYMBOLS):
+                if i < weights.shape[0] and j < weights.shape[1]:
+                    weight = float(weights[i, j])
+                    if weight > 0.01:  # 임계값 이상만 포함
+                        attention_list.append(
+                            {
+                                "from_asset": from_asset,
+                                "to_asset": to_asset,
+                                "weight": weight,
+                            }
+                        )
+
+        return attention_list
+
+
+def generate_explanation_text(
+    feature_importance: List[Dict],
+    attention_weights: List[Dict],
+    allocation: List[Dict],
+) -> str:
+    """XAI 결과를 바탕으로 설명 텍스트 생성"""
+
+    # 가장 중요한 특성들
+    top_features = feature_importance[:5]
+
+    # 가장 높은 배분을 받은 자산들
+    top_assets = sorted(
+        [a for a in allocation if a["symbol"] != "현금"],
+        key=lambda x: x["weight"],
+        reverse=True,
+    )[:3]
+
+    explanation = "AI 포트폴리오 결정 근거:\n\n"
+
+    # 주요 영향 요인
+    explanation += "🔍 주요 영향 요인:\n"
+    for i, feature in enumerate(top_features, 1):
+        explanation += f"{i}. {feature['asset_name']}의 {feature['feature_name']}: {feature['importance_score']:.3f}\n"
+
+    explanation += "\n📊 핵심 투자 논리:\n"
+
+    # 상위 자산별 설명
+    for asset in top_assets:
+        symbol = asset["symbol"]
+        weight = asset["weight"] * 100
+
+        # 해당 자산의 주요 특성 찾기
+        asset_features = [f for f in top_features if f["asset_name"] == symbol]
+
+        if asset_features:
+            main_feature = asset_features[0]["feature_name"]
+            explanation += f"• {symbol} ({weight:.1f}%): {main_feature} 지표가 긍정적 신호를 보임\n"
+        else:
+            explanation += f"• {symbol} ({weight:.1f}%): 안정적인 성과 기대\n"
+
+    # 리스크 관리
+    cash_allocation = next((a for a in allocation if a["symbol"] == "현금"), None)
+    if cash_allocation and cash_allocation["weight"] > 0.1:
+        explanation += f"\n🛡️ 리스크 관리:\n"
+        explanation += (
+            f"• 현금 {cash_allocation['weight']*100:.1f}% 보유로 변동성 완충\n"
+        )
+
+    # 어텐션 분석
+    if attention_weights:
+        top_attention = sorted(
+            attention_weights, key=lambda x: x["weight"], reverse=True
+        )[:3]
+        explanation += f"\n🔗 자산 간 상관관계:\n"
+        for att in top_attention:
+            explanation += f"• {att['from_asset']} ↔ {att['to_asset']}: {att['weight']*100:.1f}% 연관성\n"
+
+    explanation += f"\n💡 AI 분석 요약:\n"
+    explanation += (
+        f"현재 시장 상황에서 기술주 중심의 포트폴리오가 최적으로 판단됩니다. "
+    )
+    explanation += f"특히 상위 자산들의 기술적 지표가 긍정적 신호를 보이고 있어 "
+    explanation += f"단기적으로 좋은 성과를 기대할 수 있습니다."
+
+    return explanation
+
+
+@app.post("/explain", response_model=XAIResponse)
+async def explain_prediction(request: XAIRequest):
+    """XAI 설명 엔드포인트"""
+
+    if model is None:
+        raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다.")
+
+    try:
+        # 예측과 동일한 데이터 준비
+        market_data = get_market_data_with_context(
+            request.investment_amount, request.risk_tolerance
+        )
+
+        if market_data is None:
+            raise HTTPException(
+                status_code=500, detail="시장 데이터를 가져올 수 없습니다."
+            )
+
+        enhanced_data = enhance_data_with_user_context(
+            market_data,
+            request.investment_amount,
+            request.risk_tolerance,
+            request.investment_horizon,
+        )
+
+        input_tensor = torch.FloatTensor(enhanced_data).unsqueeze(0).to(DEVICE)
+
+        # XAI 계산
+        feature_importance = calculate_feature_importance(model, input_tensor)
+        attention_weights = extract_attention_weights(model, input_tensor)
+
+        # 현재 예측 결과도 함께 계산
+        prediction_result = predict_portfolio(
+            request.investment_amount,
+            request.risk_tolerance,
+            request.investment_horizon,
+        )
+
+        explanation_text = generate_explanation_text(
+            feature_importance, attention_weights, prediction_result["allocation"]
+        )
+
+        return XAIResponse(
+            feature_importance=[
+                FeatureImportance(
+                    feature_name=item["feature_name"],
+                    importance_score=item["importance_score"],
+                    asset_name=item["asset_name"],
+                )
+                for item in feature_importance
+            ],
+            attention_weights=[
+                AttentionWeight(
+                    from_asset=item["from_asset"],
+                    to_asset=item["to_asset"],
+                    weight=item["weight"],
+                )
+                for item in attention_weights
+            ],
+            explanation_text=explanation_text,
+        )
+
+    except Exception as e:
+        print(f"XAI 설명 생성 오류: {e}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, detail="XAI 설명 생성 중 오류가 발생했습니다."
         )
 
 

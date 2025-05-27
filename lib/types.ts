@@ -33,3 +33,29 @@ export interface ApiResponse<T> {
 	data?: T;
 	error?: string;
 }
+
+// XAI 관련 타입 정의
+export interface FeatureImportance {
+	feature_name: string;
+	importance_score: number;
+	asset_name: string;
+}
+
+export interface AttentionWeight {
+	from_asset: string;
+	to_asset: string;
+	weight: number;
+}
+
+export interface XAIData {
+	feature_importance: FeatureImportance[];
+	attention_weights: AttentionWeight[];
+	explanation_text: string;
+}
+
+// XAI API 요청 타입
+export interface XAIRequest {
+	investment_amount: number;
+	risk_tolerance: string;
+	investment_horizon: number;
+}

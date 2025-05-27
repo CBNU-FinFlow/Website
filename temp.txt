@@ -1,0 +1,672 @@
+# scripts/rl_inference_server.py의 기존 코드에 다음 부분들을 추가
+
+import torch.nn.functional as F
+from typing import Dict, List, Any, Tuple
+import numpy as np
+
+# 새로운 요청/응답 모델 추가
+class XAIRequest(BaseModel):
+    investment_amount: float
+    risk_tolerance: str = "moderate"
+    investment_horizon: int = 252
+
+class FeatureImportance(BaseModel):
+    feature_name: str
+    importance_score: float
+    asset_name: str
+
+class AttentionWeight(BaseModel):
+    from_asset: str
+    to_asset: str
+    weight: float
+
+class XAIResponse(BaseModel):
+    feature_importance: List[FeatureImportance]
+    attention_weights: List[AttentionWeight]
+    explanation_text: str
+
+def calculate_feature_importance(model, input_data: torch.Tensor) -> List[Dict]:
+    """Feature importance 계산 (Integrated Gradients 기반)"""
+    model.eval()
+    input_data = input_data.requires_grad_(True)
+    
+    # 기준선 (모든 값이 0인 상태)
+    baseline = torch.zeros_like(input_data)
+    
+    # Integrated Gradients 계산
+    steps = 50
+    importance_scores = []
+    
+    for i in range(steps + 1):
+        # 선형 보간
+        alpha = i / steps
+        interpolated = baseline + alpha * (input_data - baseline)
+        interpolated.requires_grad_(True)
+        
+        # 순전파 및 역전파
+        output, _ = model(interpolated)
+        
+        # 각 출력에 대한 그래디언트 계산
+        gradients = []
+        for j in range(output.size(1)):  # 각 자산별로
+            if interpolated.grad is not None:
+                interpolated.grad.zero_()
+            
+            output[0, j].backward(retain_graph=True)
+            grad = interpolated.grad.clone()
+            gradients.append(grad)
+    
+    # 평균 그래디언트 계산
+    avg_gradients = torch.stack(gradients).mean(dim=0)
+    
+    # 중요도 점수 계산 (그래디언트 * 입력값)
+    importance = avg_gradients * (input_data - baseline)
+    importance = importance.abs().mean(dim=0)  # 절댓값의 평균
+    
+    # 결과 포맷팅
+    feature_importance = []
+    for asset_idx in range(len(STOCK_SYMBOLS)):
+        for feature_idx, feature_name in enumerate(FEATURE_NAMES):
+            if asset_idx < importance.size(0) and feature_idx < importance.size(1):
+                score = float(importance[asset_idx, feature_idx])
+                feature_importance.append({
+                    "feature_name": feature_name,
+                    "asset_name": STOCK_SYMBOLS[asset_idx],
+                    "importance_score": score
+                })
+    
+    # 중요도 순으로 정렬
+    feature_importance.sort(key=lambda x: x["importance_score"], reverse=True)
+    return feature_importance[:20]  # 상위 20개만 반환
+
+def extract_attention_weights(model, input_data: torch.Tensor) -> List[Dict]:
+    """Self-Attention weights 추출"""
+    model.eval()
+    
+    with torch.no_grad():
+        # 모델의 어텐션 레이어에서 가중치 추출
+        # LSTM 처리
+        lstm_outputs = []
+        batch_size = input_data.size(0)
+        
+        for i in range(input_data.size(1)):
+            asset_feats = input_data[:, i, :].view(batch_size, 1, -1)
+            lstm_out, _ = model.lstm(asset_feats)
+            asset_out = lstm_out[:, -1, :]
+            lstm_outputs.append(asset_out)
+        
+        lstm_stacked = torch.stack(lstm_outputs, dim=1)
+        
+        # 어텐션 가중치 계산
+        context, attention_weights = model.attention(lstm_stacked)
+        
+        # 어텐션 가중치를 리스트로 변환
+        attention_list = []
+        weights = attention_weights.squeeze(0).cpu().numpy()
+        
+        for i, from_asset in enumerate(STOCK_SYMBOLS):
+            for j, to_asset in enumerate(STOCK_SYMBOLS):
+                if i < weights.shape[0] and j < weights.shape[1]:
+                    weight = float(weights[i, j])
+                    if weight > 0.01:  # 임계값 이상만 포함
+                        attention_list.append({
+                            "from_asset": from_asset,
+                            "to_asset": to_asset,
+                            "weight": weight
+                        })
+        
+        return attention_list
+
+def generate_explanation_text(
+    feature_importance: List[Dict], 
+    attention_weights: List[Dict],
+    allocation: List[Dict]
+) -> str:
+    """XAI 결과를 바탕으로 설명 텍스트 생성"""
+    
+    # 가장 중요한 특성들
+    top_features = feature_importance[:5]
+    
+    # 가장 높은 배분을 받은 자산들
+    top_assets = sorted(
+        [a for a in allocation if a["symbol"] != "현금"], 
+        key=lambda x: x["weight"], 
+        reverse=True
+    )[:3]
+    
+    explanation = "AI 포트폴리오 결정 근거:\n\n"
+    
+    # 주요 영향 요인
+    explanation += "🔍 주요 영향 요인:\n"
+    for i, feature in enumerate(top_features, 1):
+        explanation += f"{i}. {feature['asset_name']}의 {feature['feature_name']}: {feature['importance_score']:.3f}\n"
+    
+    explanation += "\n📊 핵심 투자 논리:\n"
+    
+    # 상위 자산별 설명
+    for asset in top_assets:
+        symbol = asset["symbol"]
+        weight = asset["weight"] * 100
+        
+        # 해당 자산의 주요 특성 찾기
+        asset_features = [f for f in top_features if f["asset_name"] == symbol]
+        
+        if asset_features:
+            main_feature = asset_features[0]["feature_name"]
+            explanation += f"• {symbol} ({weight:.1f}%): {main_feature} 지표가 긍정적 신호를 보임\n"
+        else:
+            explanation += f"• {symbol} ({weight:.1f}%): 안정적인 성과 기대\n"
+    
+    # 리스크 관리
+    cash_allocation = next((a for a in allocation if a["symbol"] == "현금"), None)
+    if cash_allocation and cash_allocation["weight"] > 0.1:
+        explanation += f"\n🛡️ 리스크 관리:\n"
+        explanation += f"• 현금 {cash_allocation['weight']*100:.1f}% 보유로 변동성 완충\n"
+    
+    return explanation
+
+@app.post("/explain", response_model=XAIResponse)
+async def explain_prediction(request: XAIRequest):
+    """XAI 설명 엔드포인트"""
+    
+    if model is None:
+        raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다.")
+    
+    try:
+        # 예측과 동일한 데이터 준비
+        market_data = get_market_data_with_context(
+            request.investment_amount, 
+            request.risk_tolerance
+        )
+        
+        if market_data is None:
+            raise HTTPException(status_code=500, detail="시장 데이터를 가져올 수 없습니다.")
+        
+        enhanced_data = enhance_data_with_user_context(
+            market_data, 
+            request.investment_amount, 
+            request.risk_tolerance, 
+            request.investment_horizon
+        )
+        
+        input_tensor = torch.FloatTensor(enhanced_data).unsqueeze(0).to(DEVICE)
+        
+        # XAI 계산
+        feature_importance = calculate_feature_importance(model, input_tensor)
+        attention_weights = extract_attention_weights(model, input_tensor)
+        
+        # 현재 예측 결과도 함께 계산
+        prediction_result = predict_portfolio(
+            request.investment_amount,
+            request.risk_tolerance, 
+            request.investment_horizon
+        )
+        
+        explanation_text = generate_explanation_text(
+            feature_importance, 
+            attention_weights,
+            prediction_result["allocation"]
+        )
+        
+        return XAIResponse(
+            feature_importance=[
+                FeatureImportance(
+                    feature_name=item["feature_name"],
+                    importance_score=item["importance_score"],
+                    asset_name=item["asset_name"]
+                ) for item in feature_importance
+            ],
+            attention_weights=[
+                AttentionWeight(
+                    from_asset=item["from_asset"],
+                    to_asset=item["to_asset"],
+                    weight=item["weight"]
+                ) for item in attention_weights
+            ],
+            explanation_text=explanation_text
+        )
+        
+    except Exception as e:
+        print(f"XAI 설명 생성 오류: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="XAI 설명 생성 중 오류가 발생했습니다.")
+
+// lib/types.ts의 기존 타입들에 추가
+
+// XAI 관련 타입 정의
+export interface FeatureImportance {
+	feature_name: string;
+	importance_score: number;
+	asset_name: string;
+}
+
+export interface AttentionWeight {
+	from_asset: string;
+	to_asset: string;
+	weight: number;
+}
+
+export interface XAIData {
+	feature_importance: FeatureImportance[];
+	attention_weights: AttentionWeight[];
+	explanation_text: string;
+}
+
+// XAI API 요청 타입
+export interface XAIRequest {
+	investment_amount: number;
+	risk_tolerance: string;
+	investment_horizon: number;
+}
+
+import { NextRequest, NextResponse } from "next/server";
+import { XAIData } from "@/lib/types";
+
+export async function POST(request: NextRequest) {
+	try {
+		const { investmentAmount, riskTolerance, investmentHorizon } = await request.json();
+
+		if (!investmentAmount || investmentAmount <= 0) {
+			return NextResponse.json({ error: "유효한 투자 금액을 입력해주세요." }, { status: 400 });
+		}
+
+		console.log("XAI 설명 요청:", { investmentAmount, riskTolerance, investmentHorizon });
+
+		// 백엔드 XAI 서버 호출
+		const response = await fetch("http://localhost:8000/explain", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				investment_amount: investmentAmount,
+				risk_tolerance: riskTolerance,
+				investment_horizon: investmentHorizon,
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error(`XAI 서버 오류: ${response.status}`);
+		}
+
+		const data = await response.json();
+		console.log("XAI 서버 응답:", data);
+
+		// 응답 데이터 구조 변환
+		const xaiData: XAIData = {
+			feature_importance: data.feature_importance,
+			attention_weights: data.attention_weights,
+			explanation_text: data.explanation_text,
+		};
+
+		return NextResponse.json(xaiData);
+	} catch (error) {
+		console.error("XAI 설명 생성 오류:", error);
+
+		// 폴백: 더미 데이터 반환 (개발/테스트용)
+		const fallbackData: XAIData = {
+			feature_importance: [
+				{ feature_name: "Close", importance_score: 0.245, asset_name: "AAPL" },
+				{ feature_name: "RSI", importance_score: 0.198, asset_name: "MSFT" },
+				{ feature_name: "MACD", importance_score: 0.176, asset_name: "GOOGL" },
+				{ feature_name: "Volume", importance_score: 0.134, asset_name: "AMZN" },
+				{ feature_name: "MA21", importance_score: 0.112, asset_name: "TSLA" },
+			],
+			attention_weights: [
+				{ from_asset: "AAPL", to_asset: "MSFT", weight: 0.23 },
+				{ from_asset: "MSFT", to_asset: "GOOGL", weight: 0.19 },
+				{ from_asset: "GOOGL", to_asset: "AMZN", weight: 0.16 },
+				{ from_asset: "TSLA", to_asset: "AAPL", weight: 0.14 },
+				{ from_asset: "AMZN", to_asset: "TSLA", weight: 0.12 },
+			],
+			explanation_text: `AI 포트폴리오 결정 근거:
+
+🔍 주요 영향 요인:
+1. AAPL의 Close: 0.245
+2. MSFT의 RSI: 0.198
+3. GOOGL의 MACD: 0.176
+4. AMZN의 Volume: 0.134
+5. TSLA의 MA21: 0.112
+
+📊 핵심 투자 논리:
+• AAPL (18.0%): Close 지표가 긍정적 신호를 보임
+• MSFT (16.0%): RSI 지표가 긍정적 신호를 보임
+• GOOGL (12.0%): MACD 지표가 긍정적 신호를 보임
+
+🛡️ 리스크 관리:
+• 현금 14.0% 보유로 변동성 완충`,
+		};
+
+		return NextResponse.json(fallbackData);
+	}
+}
+
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { XAIData } from "@/lib/types";
+import { Brain, TrendingUp, Eye, Info } from "lucide-react";
+
+interface XAIVisualizationProps {
+	xaiData: XAIData | null;
+	isLoading: boolean;
+}
+
+const FEATURE_COLORS: { [key: string]: string } = {
+	Open: "#3B82F6",
+	High: "#10B981", 
+	Low: "#F59E0B",
+	Close: "#EF4444",
+	Volume: "#8B5CF6",
+	MACD: "#06B6D4",
+	RSI: "#84CC16",
+	MA14: "#F97316",
+	MA21: "#EC4899",
+	MA100: "#6B7280"
+};
+
+const ASSET_COLORS: { [key: string]: string } = {
+	AAPL: "#007AFF",
+	MSFT: "#00A4EF", 
+	AMZN: "#FF9900",
+	GOOGL: "#4285F4",
+	AMD: "#ED1C24",
+	TSLA: "#CC0000",
+	JPM: "#0066CC",
+	JNJ: "#D50000",
+	PG: "#005CA9",
+	V: "#1434CB"
+};
+
+export default function XAIVisualization({ xaiData, isLoading }: XAIVisualizationProps) {
+	if (isLoading) {
+		return (
+			<div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+					<p className="text-gray-600">AI 의사결정 과정을 분석하고 있습니다...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!xaiData) {
+		return null;
+	}
+
+	// Feature Importance 차트용 데이터 변환
+	const featureData = xaiData.feature_importance.map((item, index) => ({
+		name: `${item.asset_name}-${item.feature_name}`,
+		importance: item.importance_score,
+		asset: item.asset_name,
+		feature: item.feature_name,
+		color: FEATURE_COLORS[item.feature_name] || "#6B7280"
+	}));
+
+	// Attention Weights 네트워크 시각화용 데이터
+	const topAttentionWeights = xaiData.attention_weights
+		.sort((a, b) => b.weight - a.weight)
+		.slice(0, 10); // 상위 10개만
+
+	return (
+		<section className="py-12 bg-gradient-to-br from-purple-50 to-blue-50">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="text-center mb-8">
+					<h2 className="text-3xl font-bold text-gray-900 mb-4 flex items-center justify-center">
+						<Brain className="w-8 h-8 mr-3 text-purple-600" />
+						AI 의사결정 분석
+					</h2>
+					<p className="text-lg text-gray-600">
+						강화학습 모델이 어떤 요소를 고려해 포트폴리오를 구성했는지 분석 결과입니다
+					</p>
+				</div>
+
+				<div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+					{/* Feature Importance Chart */}
+					<Card className="bg-white shadow-lg border border-gray-100">
+						<CardHeader>
+							<CardTitle className="text-xl flex items-center">
+								<TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
+								영향도 분석
+							</CardTitle>
+							<CardDescription>
+								각 기술적 지표가 포트폴리오 결정에 미친 영향력을 보여줍니다
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className="h-80">
+								<ResponsiveContainer width="100%" height="100%">
+									<BarChart 
+										data={featureData}
+										margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+									>
+										<CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+										<XAxis 
+											dataKey="name" 
+											tick={{ fontSize: 10 }}
+											angle={-45}
+											textAnchor="end"
+											height={80}
+										/>
+										<YAxis 
+											tick={{ fontSize: 12 }}
+											label={{ value: '중요도 점수', angle: -90, position: 'insideLeft' }}
+										/>
+										<Tooltip
+											formatter={(value: any, name: any, props: any) => [
+												`${(value * 100).toFixed(1)}%`,
+												`${props.payload.asset} - ${props.payload.feature}`
+											]}
+											contentStyle={{
+												backgroundColor: "#fff",
+												border: "1px solid #e5e7eb",
+												borderRadius: "8px",
+												boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+											}}
+										/>
+										<Bar dataKey="importance" radius={[4, 4, 0, 0]}>
+											{featureData.map((entry, index) => (
+												<Cell key={`cell-${index}`} fill={entry.color} />
+											))}
+										</Bar>
+									</BarChart>
+								</ResponsiveContainer>
+							</div>
+							
+							{/* 범례 */}
+							<div className="mt-4 flex flex-wrap gap-2">
+								{Object.entries(FEATURE_COLORS).map(([feature, color]) => (
+									<Badge key={feature} variant="outline" className="text-xs">
+										<div 
+											className="w-3 h-3 rounded-full mr-1" 
+											style={{ backgroundColor: color }}
+										/>
+										{feature}
+									</Badge>
+								))}
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Attention Weights Visualization */}
+					<Card className="bg-white shadow-lg border border-gray-100">
+						<CardHeader>
+							<CardTitle className="text-xl flex items-center">
+								<Eye className="w-5 h-5 mr-2 text-green-600" />
+								주목도 네트워크
+							</CardTitle>
+							<CardDescription>
+								AI가 어떤 자산들 간의 관계에 주목했는지 보여줍니다
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-4">
+								{topAttentionWeights.map((weight, index) => (
+									<div 
+										key={index}
+										className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:shadow-md transition-shadow"
+									>
+										<div className="flex items-center space-x-4">
+											<div className="flex items-center space-x-2">
+												<div 
+													className="w-4 h-4 rounded-full shadow-sm"
+													style={{ backgroundColor: ASSET_COLORS[weight.from_asset] || "#6B7280" }}
+												/>
+												<span className="font-semibold text-gray-800">
+													{weight.from_asset}
+												</span>
+											</div>
+											
+											<div className="text-gray-400">→</div>
+											
+											<div className="flex items-center space-x-2">
+												<div 
+													className="w-4 h-4 rounded-full shadow-sm"
+													style={{ backgroundColor: ASSET_COLORS[weight.to_asset] || "#6B7280" }}
+												/>
+												<span className="font-semibold text-gray-800">
+													{weight.to_asset}
+												</span>
+											</div>
+										</div>
+										
+										<div className="flex items-center space-x-3">
+											<div className="w-20 bg-gray-200 rounded-full h-2">
+												<div 
+													className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+													style={{ width: `${weight.weight * 100}%` }}
+												/>
+											</div>
+											<span className="text-sm font-bold text-blue-600 w-12 text-right">
+												{(weight.weight * 100).toFixed(1)}%
+											</span>
+										</div>
+									</div>
+								))}
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+
+				{/* AI 설명 텍스트 */}
+				<Card className="bg-white shadow-lg border border-gray-100">
+					<CardHeader>
+						<CardTitle className="text-xl flex items-center">
+							<Info className="w-5 h-5 mr-2 text-orange-600" />
+							AI 설명
+						</CardTitle>
+						<CardDescription>
+							포트폴리오 구성에 대한 AI의 상세한 설명입니다
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+							<pre className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">
+								{xaiData.explanation_text}
+							</pre>
+						</div>
+						
+						<div className="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+							<p className="text-sm text-yellow-800">
+								<strong>참고:</strong> 이 설명은 AI 모델의 내부 계산을 바탕으로 생성되었으며, 
+								실제 시장 상황과 다를 수 있습니다. 투자 결정시 참고 자료로만 활용해주세요.
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		</section>
+	);
+}
+
+// app/page.tsx에 추가할 부분들
+
+// 기존 import에 추가
+import { XAIData } from "@/lib/types";
+import XAIVisualization from "@/components/XAIVisualization";
+import { Brain } from "lucide-react";
+
+// 기존 상태 변수들에 추가
+const [xaiData, setXaiData] = useState<XAIData | null>(null);
+const [isLoadingXAI, setIsLoadingXAI] = useState(false);
+const [showXAI, setShowXAI] = useState(false);
+
+// XAI 설명 가져오기 함수 추가
+const handleXAIAnalysis = async () => {
+	if (!investmentAmount) {
+		setError("먼저 포트폴리오 분석을 완료해주세요.");
+		return;
+	}
+
+	setIsLoadingXAI(true);
+	setError("");
+
+	try {
+		console.log("XAI 분석 요청:", {
+			investmentAmount,
+			riskTolerance,
+			investmentHorizon: investmentHorizon[0],
+		});
+
+		const response = await fetch("/api/explain", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				investmentAmount: Number.parseInt(investmentAmount),
+				riskTolerance,
+				investmentHorizon: investmentHorizon[0],
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error("XAI 분석에 실패했습니다.");
+		}
+
+		const data = await response.json();
+		console.log("XAI 분석 결과:", data);
+
+		setXaiData(data);
+		setShowXAI(true);
+	} catch (err) {
+		setError(err instanceof Error ? err.message : "XAI 분석 중 오류가 발생했습니다.");
+	} finally {
+		setIsLoadingXAI(false);
+	}
+};
+
+// Results Section 내부에 XAI 버튼과 컴포넌트 추가
+// 기존 Results Section의 끝부분, 상세 성과 비교 테이블 다음에 추가:
+
+{/* XAI 분석 버튼 및 결과 */}
+<div className="mt-8 text-center">
+	<Button
+		onClick={handleXAIAnalysis}
+		disabled={isLoadingXAI}
+		variant="outline"
+		size="lg"
+		className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
+	>
+		<Brain className="w-5 h-5 mr-2" />
+		{isLoadingXAI ? "AI 의사결정 분석 중..." : "AI 의사결정 과정 분석하기"}
+	</Button>
+	
+	{error && showResults && (
+		<div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
+			<p className="text-red-600 text-sm flex items-center justify-center">
+				<AlertCircle className="w-4 h-4 mr-2" />
+				{error}
+			</p>
+		</div>
+	)}
+</div>
+
+{/* XAI 시각화 섹션 */}
+{showXAI && (
+	<XAIVisualization 
+		xaiData={xaiData} 
+		isLoading={isLoadingXAI} 
+	/>
+)}

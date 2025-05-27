@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { TrendingUp, BarChart3, Users, CheckCircle, Lock, User, AlertCircle, Calendar, Target } from "lucide-react";
+import { TrendingUp, BarChart3, Users, CheckCircle, Lock, User, AlertCircle, Calendar, Target, Brain } from "lucide-react";
 import PortfolioVisualization from "@/components/PortfolioVisualization";
+import XAIVisualization from "@/components/XAIVisualization";
+import { XAIData } from "@/lib/types";
 
 export default function FinFlowDemo() {
 	const [investmentAmount, setInvestmentAmount] = useState("");
@@ -31,6 +33,9 @@ export default function FinFlowDemo() {
 		volatility: "",
 	});
 	const [error, setError] = useState<string>("");
+	const [xaiData, setXaiData] = useState<XAIData | null>(null);
+	const [isLoadingXAI, setIsLoadingXAI] = useState(false);
+	const [showXAI, setShowXAI] = useState(false);
 
 	// 투자 금액 포맷팅 함수
 	const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,6 +202,51 @@ export default function FinFlowDemo() {
 			setIsAnalyzing(false);
 			setAnalysisProgress(0);
 			setAnalysisStep("");
+		}
+	};
+
+	// XAI 설명 가져오기 함수
+	const handleXAIAnalysis = async () => {
+		if (!investmentAmount) {
+			setError("먼저 포트폴리오 분석을 완료해주세요.");
+			return;
+		}
+
+		setIsLoadingXAI(true);
+		setError("");
+
+		try {
+			console.log("XAI 분석 요청:", {
+				investmentAmount,
+				riskTolerance,
+				investmentHorizon: investmentHorizon[0],
+			});
+
+			const response = await fetch("/api/explain", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					investmentAmount: Number.parseInt(investmentAmount),
+					riskTolerance,
+					investmentHorizon: investmentHorizon[0],
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error("XAI 분석에 실패했습니다.");
+			}
+
+			const data = await response.json();
+			console.log("XAI 분석 결과:", data);
+
+			setXaiData(data);
+			setShowXAI(true);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "XAI 분석 중 오류가 발생했습니다.");
+		} finally {
+			setIsLoadingXAI(false);
 		}
 	};
 
@@ -484,9 +534,35 @@ export default function FinFlowDemo() {
 								</p>
 							</CardContent>
 						</Card>
+
+						{/* XAI 분석 버튼 및 결과 */}
+						<div className="mt-8 text-center">
+							<Button
+								onClick={handleXAIAnalysis}
+								disabled={isLoadingXAI}
+								variant="outline"
+								size="lg"
+								className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
+							>
+								<Brain className="w-5 h-5 mr-2" />
+								{isLoadingXAI ? "AI 의사결정 분석 중..." : "AI 의사결정 과정 분석하기"}
+							</Button>
+
+							{error && showResults && (
+								<div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
+									<p className="text-red-600 text-sm flex items-center justify-center">
+										<AlertCircle className="w-4 h-4 mr-2" />
+										{error}
+									</p>
+								</div>
+							)}
+						</div>
 					</div>
 				</section>
 			)}
+
+			{/* XAI 시각화 섹션 */}
+			{showXAI && <XAIVisualization xaiData={xaiData} isLoading={isLoadingXAI} />}
 
 			{/* Features Section */}
 			<section className="bg-gray-100 py-16">
