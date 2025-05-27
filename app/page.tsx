@@ -83,6 +83,8 @@ export default function FinFlowDemo() {
 
 		setIsAnalyzing(true);
 		setShowResults(false); // 기존 결과 숨기기
+		setShowXAI(false); // XAI 결과도 숨기기
+		setXaiData(null); // XAI 데이터 초기화
 		setError("");
 		setAnalysisProgress(0);
 		setAnalysisStep("시장 데이터 수집 중...");
