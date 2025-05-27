@@ -1,0 +1,124 @@
+/Users/reo/Documents/Repositories/finflow-ui/scripts/rl_inference_server.py:820: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Will watch for changes in these directories: ['/Users/reo/Documents/Repositories/finflow-ui/scripts']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [45332] using WatchFiles
+INFO:     Started server process [46212]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+데이터 로드 중...
+데이터 파일 로드 중: data/portfolio_data_AAPL_AMZN_GOOGL_MSFT_2020-01-01_2021-01-01.pkl
+데이터 로드 성공: (253, 10, 10), 날짜 범위: 2020-01-02 00:00:00 ~ 2020-12-31 00:00:00
+강화학습 모델 로드 중...
+체크포인트 키: ['episode', 'model_state_dict', 'optimizer_state_dict', 'best_reward', 'ema_model_state_dict', 'ema_decay']
+모델 로드 성공: models/best_model.pth
+서버 준비 완료 (모델 + 데이터)
+XAI 분석 시작: 투자금액=1000000.0, 방식=fast
+동적 데이터 생성: 날짜 인덱스 245, 리스크 moderate, 금액 1000000.0
+빠른 근사 Feature Importance 계산 시작 (예상 5-10초)
+빠른 Feature Importance 계산 중... (5-10초)
+실용적 Feature Importance 계산 완료!
+상위 5개: [0.3299, 0.3007, 0.2807, 0.2723, 0.2686]
+Attention Weights 추출 중...
+어텐션 가중치 형태: torch.Size([1, 10, 10])
+어텐션 가중치 샘플: tensor([[0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000]])
+어텐션 가중치 행 합계 (처음 5개): [1. 1. 1. 1. 1.]
+어텐션 가중치 계산 완료! 상위 5개: [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612]
+포트폴리오 예측 시작: 금액=1000000.0, 리스크=moderate, 기간=252일
+동적 데이터 생성: 날짜 인덱스 250, 리스크 moderate, 금액 1000000.0
+모델 입력 텐서 형태: torch.Size([1, 10, 10])
+입력 데이터 샘플: [137.47589 137.63058 135.23901]
+모델 출력 가중치: [0.08714344 0.11531539 0.18362264 0.1343905  0.0556093 ]...
+최종 응답 데이터: {'allocation': [{'symbol': 'AAPL', 'weight': 0.08714344141471249}, {'symbol': 'MSFT', 'weight': 0.11531538237053907}, {'symbol': 'AMZN', 'weight': 0.18362263890524524}, {'symbol': 'GOOGL', 'weight': 0.13439049991392252}, {'symbol': 'AMD', 'weight': 0.05560929566077731}, {'symbol': 'TSLA', 'weight': 0.11017318548215291}, {'symbol': 'JPM', 'weight': 0.07905816840425843}, {'symbol': 'JNJ', 'weight': 0.025015228753540713}, {'symbol': 'PG', 'weight': 0.059582112776921194}, {'symbol': 'V', 'weight': 0.048176708395970595}, {'symbol': '현금', 'weight': 0.10191333792195954}], 'metrics': {'total_return': 40.1, 'annual_return': 15.42, 'sharpe_ratio': 0.8927, 'sortino_ratio': 1.3034, 'max_drawdown': 19.18, 'volatility': 17.28, 'win_rate': 57.3, 'profit_loss_ratio': 1.3643}}
+XAI 분석 완료! (방식: fast)
+INFO:     127.0.0.1:50165 - "POST /explain HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50224 - "OPTIONS /predict HTTP/1.1" 200 OK
+포트폴리오 예측 시작: 금액=1231423.0, 리스크=moderate, 기간=413일
+동적 데이터 생성: 날짜 인덱스 228, 리스크 moderate, 금액 1231423.0
+모델 입력 텐서 형태: torch.Size([1, 10, 10])
+입력 데이터 샘플: [114.55485 115.83554 114.69709]
+모델 출력 가중치: [0.08714344 0.11531539 0.18362264 0.1343905  0.0556093 ]...
+최종 응답 데이터: {'allocation': [{'symbol': 'AAPL', 'weight': 0.08714344141471249}, {'symbol': 'MSFT', 'weight': 0.11531538237053907}, {'symbol': 'AMZN', 'weight': 0.18362263890524524}, {'symbol': 'GOOGL', 'weight': 0.13439049991392252}, {'symbol': 'AMD', 'weight': 0.05560929566077731}, {'symbol': 'TSLA', 'weight': 0.11017318548215291}, {'symbol': 'JPM', 'weight': 0.07905816840425843}, {'symbol': 'JNJ', 'weight': 0.025015228753540713}, {'symbol': 'PG', 'weight': 0.059582112776921194}, {'symbol': 'V', 'weight': 0.048176708395970595}, {'symbol': '현금', 'weight': 0.10191333792195954}], 'metrics': {'total_return': 40.1, 'annual_return': 15.42, 'sharpe_ratio': 0.8927, 'sortino_ratio': 1.3034, 'max_drawdown': 19.18, 'volatility': 17.28, 'win_rate': 57.3, 'profit_loss_ratio': 1.3643}}
+INFO:     127.0.0.1:50224 - "POST /predict HTTP/1.1" 200 OK
+XAI 분석 시작: 투자금액=1231423.0, 방식=fast
+동적 데이터 생성: 날짜 인덱스 245, 리스크 moderate, 금액 1231423.0
+빠른 근사 Feature Importance 계산 시작 (예상 5-10초)
+빠른 Feature Importance 계산 중... (5-10초)
+실용적 Feature Importance 계산 완료!
+상위 5개: [0.3424, 0.3183, 0.2995, 0.2769, 0.2587]
+Attention Weights 추출 중...
+어텐션 가중치 형태: torch.Size([1, 10, 10])
+어텐션 가중치 샘플: tensor([[0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000]])
+어텐션 가중치 행 합계 (처음 5개): [1. 1. 1. 1. 1.]
+어텐션 가중치 계산 완료! 상위 5개: [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612]
+포트폴리오 예측 시작: 금액=1231423.0, 리스크=moderate, 기간=413일
+동적 데이터 생성: 날짜 인덱스 246, 리스크 moderate, 금액 1231423.0
+모델 입력 텐서 형태: torch.Size([1, 10, 10])
+입력 데이터 샘플: [131.36908 134.63498 127.51965]
+모델 출력 가중치: [0.08714344 0.11531539 0.18362264 0.1343905  0.0556093 ]...
+최종 응답 데이터: {'allocation': [{'symbol': 'AAPL', 'weight': 0.08714344141471249}, {'symbol': 'MSFT', 'weight': 0.11531538237053907}, {'symbol': 'AMZN', 'weight': 0.18362263890524524}, {'symbol': 'GOOGL', 'weight': 0.13439049991392252}, {'symbol': 'AMD', 'weight': 0.05560929566077731}, {'symbol': 'TSLA', 'weight': 0.11017318548215291}, {'symbol': 'JPM', 'weight': 0.07905816840425843}, {'symbol': 'JNJ', 'weight': 0.025015228753540713}, {'symbol': 'PG', 'weight': 0.059582112776921194}, {'symbol': 'V', 'weight': 0.048176708395970595}, {'symbol': '현금', 'weight': 0.10191333792195954}], 'metrics': {'total_return': 40.1, 'annual_return': 15.42, 'sharpe_ratio': 0.8927, 'sortino_ratio': 1.3034, 'max_drawdown': 19.18, 'volatility': 17.28, 'win_rate': 57.3, 'profit_loss_ratio': 1.3643}}
+XAI 분석 완료! (방식: fast)
+INFO:     127.0.0.1:50229 - "POST /explain HTTP/1.1" 200 OK
+XAI 분석 시작: 투자금액=1231423.0, 방식=fast
+동적 데이터 생성: 날짜 인덱스 228, 리스크 moderate, 금액 1231423.0
+빠른 근사 Feature Importance 계산 시작 (예상 5-10초)
+빠른 Feature Importance 계산 중... (5-10초)
+실용적 Feature Importance 계산 완료!
+상위 5개: [0.3238, 0.291, 0.2674, 0.2655, 0.2525]
+Attention Weights 추출 중...
+어텐션 가중치 형태: torch.Size([1, 10, 10])
+어텐션 가중치 샘플: tensor([[0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000]])
+어텐션 가중치 행 합계 (처음 5개): [1. 1. 1. 1. 1.]
+어텐션 가중치 계산 완료! 상위 5개: [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612]
+포트폴리오 예측 시작: 금액=1231423.0, 리스크=moderate, 기간=413일
+동적 데이터 생성: 날짜 인덱스 225, 리스크 moderate, 금액 1231423.0
+모델 입력 텐서 형태: torch.Size([1, 10, 10])
+입력 데이터 샘플: [119.54266 117.79686 116.87532]
+모델 출력 가중치: [0.08714344 0.11531539 0.18362264 0.1343905  0.0556093 ]...
+최종 응답 데이터: {'allocation': [{'symbol': 'AAPL', 'weight': 0.08714344141471249}, {'symbol': 'MSFT', 'weight': 0.11531538237053907}, {'symbol': 'AMZN', 'weight': 0.18362263890524524}, {'symbol': 'GOOGL', 'weight': 0.13439049991392252}, {'symbol': 'AMD', 'weight': 0.05560929566077731}, {'symbol': 'TSLA', 'weight': 0.11017318548215291}, {'symbol': 'JPM', 'weight': 0.07905816840425843}, {'symbol': 'JNJ', 'weight': 0.025015228753540713}, {'symbol': 'PG', 'weight': 0.059582112776921194}, {'symbol': 'V', 'weight': 0.048176708395970595}, {'symbol': '현금', 'weight': 0.10191333792195954}], 'metrics': {'total_return': 40.1, 'annual_return': 15.42, 'sharpe_ratio': 0.8927, 'sortino_ratio': 1.3034, 'max_drawdown': 19.18, 'volatility': 17.28, 'win_rate': 57.3, 'profit_loss_ratio': 1.3643}}
+XAI 분석 완료! (방식: fast)
+INFO:     127.0.0.1:50229 - "POST /explain HTTP/1.1" 200 OK
+XAI 분석 시작: 투자금액=1231423.0, 방식=accurate
+동적 데이터 생성: 날짜 인덱스 224, 리스크 moderate, 금액 1231423.0
+정확한 Integrated Gradients 계산 시작 (예상 30초-2분)
+Integrated Gradients 계산 시작... (예상 소요시간: 30초 - 2분)
+계산 중... 50 steps
+진행률: 10% (5/50)
+진행률: 20% (10/50)
+진행률: 30% (15/50)
+진행률: 40% (20/50)
+진행률: 50% (25/50)
+진행률: 60% (30/50)
+진행률: 70% (35/50)
+진행률: 80% (40/50)
+진행률: 90% (45/50)
+진행률: 100% (50/50)
+중요도 점수 형태: torch.Size([10, 10])
+중요도 점수 샘플: tensor([2.1714e-11, 7.8852e-11, 1.5764e-10])
+Integrated Gradients 계산 완료! 상위 5개: [6.053773176972754e-05, 5.59080253879074e-05, 2.8925285732839257e-05, 2.2257814634940587e-05, 1.098453958547907e-05]
+Attention Weights 추출 중...
+어텐션 가중치 형태: torch.Size([1, 10, 10])
+어텐션 가중치 샘플: tensor([[0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000],
+        [0.1000, 0.1000, 0.1000]])
+어텐션 가중치 행 합계 (처음 5개): [1. 1. 1. 1. 1.]
+어텐션 가중치 계산 완료! 상위 5개: [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612]
+포트폴리오 예측 시작: 금액=1231423.0, 리스크=moderate, 기간=413일
+동적 데이터 생성: 날짜 인덱스 230, 리스크 moderate, 금액 1231423.0
+모델 입력 텐서 형태: torch.Size([1, 10, 10])
+입력 데이터 샘플: [115.68578 121.05706 116.74533]
+모델 출력 가중치: [0.08714344 0.11531539 0.18362264 0.1343905  0.0556093 ]...
+최종 응답 데이터: {'allocation': [{'symbol': 'AAPL', 'weight': 0.08714344141471249}, {'symbol': 'MSFT', 'weight': 0.11531538237053907}, {'symbol': 'AMZN', 'weight': 0.18362263890524524}, {'symbol': 'GOOGL', 'weight': 0.13439049991392252}, {'symbol': 'AMD', 'weight': 0.05560929566077731}, {'symbol': 'TSLA', 'weight': 0.11017318548215291}, {'symbol': 'JPM', 'weight': 0.07905816840425843}, {'symbol': 'JNJ', 'weight': 0.025015228753540713}, {'symbol': 'PG', 'weight': 0.059582112776921194}, {'symbol': 'V', 'weight': 0.048176708395970595}, {'symbol': '현금', 'weight': 0.10191333792195954}], 'metrics': {'total_return': 40.1, 'annual_return': 15.42, 'sharpe_ratio': 0.8927, 'sortino_ratio': 1.3034, 'max_drawdown': 19.18, 'volatility': 17.28, 'win_rate': 57.3, 'profit_loss_ratio': 1.3643}}
+XAI 분석 완료! (방식: accurate)
+INFO:     127.0.0.1:50241 - "POST /explain HTTP/1.1" 200 OK
