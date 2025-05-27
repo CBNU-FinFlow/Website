@@ -36,6 +36,8 @@ export default function FinFlowDemo() {
 	const [xaiData, setXaiData] = useState<XAIData | null>(null);
 	const [isLoadingXAI, setIsLoadingXAI] = useState(false);
 	const [showXAI, setShowXAI] = useState(false);
+	const [xaiMethod, setXaiMethod] = useState<"fast" | "accurate">("fast");
+	const [xaiProgress, setXaiProgress] = useState(0);
 
 	// 투자 금액 포맷팅 함수
 	const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,7 +89,7 @@ export default function FinFlowDemo() {
 		setXaiData(null); // XAI 데이터 초기화
 		setError("");
 		setAnalysisProgress(0);
-		setAnalysisStep("시장 데이터 수집 중...");
+		setAnalysisStep("시장 데이터를 수집하고 있습니다...");
 		console.log("분석 시작:", {
 			investmentAmount,
 			riskTolerance,
@@ -97,11 +99,11 @@ export default function FinFlowDemo() {
 		try {
 			// 단계별 분석 시뮬레이션
 			const steps = [
-				{ message: "시장 데이터 수집 중...", progress: 20, delay: 800 },
-				{ message: "기술적 지표 계산 중...", progress: 40, delay: 1000 },
-				{ message: "리스크 모델 분석 중...", progress: 60, delay: 1200 },
-				{ message: "강화학습 모델 추론 중...", progress: 80, delay: 1500 },
-				{ message: "포트폴리오 최적화 중...", progress: 95, delay: 800 },
+				{ message: "시장 데이터를 수집하고 있습니다...", progress: 20, delay: 800 },
+				{ message: "기술적 지표를 계산하고 있습니다...", progress: 40, delay: 1000 },
+				{ message: "리스크 모델을 분석하고 있습니다...", progress: 60, delay: 1200 },
+				{ message: "강화학습 모델을 추론하고 있습니다...", progress: 80, delay: 1500 },
+				{ message: "포트폴리오를 최적화하고 있습니다...", progress: 95, delay: 800 },
 			];
 
 			for (const step of steps) {
@@ -199,7 +201,7 @@ export default function FinFlowDemo() {
 			setShowResults(true);
 			console.log("결과 설정 완료, showResults:", true);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
+			setError(err instanceof Error ? err.message : "서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해보세요.");
 		} finally {
 			setIsAnalyzing(false);
 			setAnalysisProgress(0);
@@ -208,21 +210,31 @@ export default function FinFlowDemo() {
 	};
 
 	// XAI 설명 가져오기 함수
-	const handleXAIAnalysis = async () => {
+	const handleXAIAnalysis = async (method: "fast" | "accurate" = xaiMethod) => {
 		if (!investmentAmount) {
-			setError("먼저 포트폴리오 분석을 완료해주세요.");
+			setError("먼저 포트폴리오 분석을 완료해보세요.");
 			return;
 		}
 
 		setIsLoadingXAI(true);
+		setXaiProgress(0);
 		setError("");
 
+		// 예상 시간 계산
+		const estimatedTime = method === "fast" ? "5-10초" : "30초-2분";
+		console.log(`XAI 분석 시작 (${method} 모드, 예상 시간: ${estimatedTime})`);
+
 		try {
-			console.log("XAI 분석 요청:", {
-				investmentAmount,
-				riskTolerance,
-				investmentHorizon: investmentHorizon[0],
-			});
+			// 진행률 시뮬레이션 (실제 백엔드에서 WebSocket으로 받을 수도 있음)
+			const progressInterval = setInterval(
+				() => {
+					setXaiProgress((prev) => {
+						const increment = method === "fast" ? 10 : 5;
+						return Math.min(prev + increment, 90);
+					});
+				},
+				method === "fast" ? 500 : 2000
+			);
 
 			const response = await fetch("/api/explain", {
 				method: "POST",
@@ -233,8 +245,12 @@ export default function FinFlowDemo() {
 					investmentAmount: Number.parseInt(investmentAmount),
 					riskTolerance,
 					investmentHorizon: investmentHorizon[0],
+					method: method, // 계산 방식 전달
 				}),
 			});
+
+			clearInterval(progressInterval);
+			setXaiProgress(100);
 
 			if (!response.ok) {
 				throw new Error("XAI 분석에 실패했습니다.");
@@ -249,6 +265,7 @@ export default function FinFlowDemo() {
 			setError(err instanceof Error ? err.message : "XAI 분석 중 오류가 발생했습니다.");
 		} finally {
 			setIsLoadingXAI(false);
+			setXaiProgress(0);
 		}
 	};
 
@@ -287,7 +304,7 @@ export default function FinFlowDemo() {
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 						<div>
 							<h1 className="text-4xl font-bold text-gray-900 mb-6">AI 기반 포트폴리오 리밸런싱</h1>
-							<p className="text-xl text-gray-600 mb-8">시장 상황과 재무 목표에 맞게 적응하는 강화학습 알고리즘으로 투자 전략을 최적화하세요.</p>
+							<p className="text-xl text-gray-600 mb-8">시장 상황과 재무 목표에 맞게 적응하는 강화학습 알고리즘으로 투자 전략을 최적화해드립니다.</p>
 
 							<div className="space-y-6">
 								{/* 투자 금액 */}
@@ -369,7 +386,7 @@ export default function FinFlowDemo() {
 								</div>
 
 								<Button onClick={handleAnalysis} disabled={!investmentAmount || isAnalyzing} className="w-full lg:w-auto" size="lg">
-									{isAnalyzing ? "AI 분석 중..." : "지금 바로 시작하기"}
+									{isAnalyzing ? "AI 분석 중입니다..." : "지금 바로 시작해보세요"}
 								</Button>
 
 								{error && (
@@ -402,8 +419,8 @@ export default function FinFlowDemo() {
 									<div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
 										<CheckCircle className="w-12 h-12 text-green-500" />
 									</div>
-									<p className="text-lg font-medium text-gray-700">분석 완료!</p>
-									<p className="text-sm mt-2">아래에서 상세 결과를 확인하세요</p>
+									<p className="text-lg font-medium text-gray-700">분석이 완료되었습니다!</p>
+									<p className="text-sm mt-2">아래에서 상세 결과를 확인해보세요</p>
 								</div>
 							) : (
 								<div className="text-gray-400 text-center">
@@ -532,23 +549,98 @@ export default function FinFlowDemo() {
 									</table>
 								</div>
 								<p className="text-sm text-gray-500 mt-6 p-4 bg-gray-50 rounded-lg">
-									<strong>참고:</strong> 과거 백테스트 기반 예상 수치이며, 실제 결과는 다를 수 있다. 투자 결정 시 다양한 요소를 종합적으로 고려해야 한다.
+									<strong>참고:</strong> 과거 백테스트 기반 예상 수치이며, 실제 결과는 다를 수 있습니다. 투자 결정 시 다양한 요소를 종합적으로 고려해주세요.
 								</p>
 							</CardContent>
 						</Card>
 
-						{/* XAI 분석 버튼 및 결과 */}
-						<div className="mt-8 text-center">
-							<Button
-								onClick={handleXAIAnalysis}
-								disabled={isLoadingXAI}
-								variant="outline"
-								size="lg"
-								className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-0"
-							>
-								<Brain className="w-5 h-5 mr-2" />
-								{isLoadingXAI ? "AI 의사결정 분석 중..." : "AI 의사결정 과정 분석하기"}
-							</Button>
+						{/* XAI 분석 선택 및 버튼 */}
+						<div className="mt-8 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+							<div className="text-center mb-6">
+								<h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center justify-center">
+									<Brain className="w-6 h-6 mr-2 text-purple-600" />
+									AI 의사결정 과정 분석
+								</h3>
+								<p className="text-gray-600">AI가 어떤 근거로 이 포트폴리오를 추천했는지 분석해드립니다</p>
+							</div>
+
+							{/* 계산 방식 선택 */}
+							<div className="mb-6">
+								<Label className="text-sm font-medium mb-3 block">계산 방식 선택</Label>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div
+										className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${xaiMethod === "fast" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
+										onClick={() => setXaiMethod("fast")}
+									>
+										<div className="flex items-start space-x-3">
+											<div className={`w-4 h-4 rounded-full border-2 mt-0.5 ${xaiMethod === "fast" ? "border-blue-500 bg-blue-500" : "border-gray-300"}`}>
+												{xaiMethod === "fast" && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+											</div>
+											<div>
+												<h4 className="font-semibold text-gray-900">빠른 분석</h4>
+												<p className="text-sm text-gray-600 mt-1">근사적 계산 방식 (5-10초)</p>
+												<div className="mt-2">
+													<Badge variant="secondary" className="text-xs">
+														실시간 UX 최적화
+													</Badge>
+												</div>
+											</div>
+										</div>
+									</div>
+
+									<div
+										className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${xaiMethod === "accurate" ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300"}`}
+										onClick={() => setXaiMethod("accurate")}
+									>
+										<div className="flex items-start space-x-3">
+											<div className={`w-4 h-4 rounded-full border-2 mt-0.5 ${xaiMethod === "accurate" ? "border-purple-500 bg-purple-500" : "border-gray-300"}`}>
+												{xaiMethod === "accurate" && <div className="w-2 h-2 bg-white rounded-full m-0.5" />}
+											</div>
+											<div>
+												<h4 className="font-semibold text-gray-900">정확한 분석</h4>
+												<p className="text-sm text-gray-600 mt-1">Integrated Gradients (30초-2분)</p>
+												<div className="mt-2">
+													<Badge variant="secondary" className="text-xs">
+														연구/분석용 고정밀도
+													</Badge>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							{/* 분석 버튼 및 진행률 */}
+							{isLoadingXAI ? (
+								<div className="text-center">
+									<div className="mb-4">
+										<div className="text-lg font-medium text-gray-700 mb-2">{xaiMethod === "fast" ? "빠른 분석" : "정확한 분석"} 진행 중입니다...</div>
+										<Progress value={xaiProgress} className="w-full max-w-md mx-auto mb-2" />
+										<p className="text-sm text-gray-500">
+											{xaiProgress}% 완료 (예상 시간: {xaiMethod === "fast" ? "5-10초" : "30초-2분"})
+										</p>
+									</div>
+									<div className="text-xs text-gray-400">{xaiMethod === "accurate" && "정확한 분석은 계산 시간이 오래 걸립니다. 잠시만 기다려주세요."}</div>
+								</div>
+							) : (
+								<div className="text-center">
+									<Button
+										onClick={() => handleXAIAnalysis()}
+										disabled={isLoadingXAI}
+										size="lg"
+										className={`${
+											xaiMethod === "fast"
+												? "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+												: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+										} text-white border-0`}
+									>
+										<Brain className="w-5 h-5 mr-2" />
+										{xaiMethod === "fast" ? "빠른 분석 시작하기" : "정확한 분석 시작하기"}
+									</Button>
+
+									<div className="mt-3 text-sm text-gray-500">예상 소요 시간: {xaiMethod === "fast" ? "5-10초" : "30초-2분"}</div>
+								</div>
+							)}
 
 							{error && showResults && (
 								<div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
@@ -608,7 +700,7 @@ export default function FinFlowDemo() {
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 						<div>
 							<h2 className="text-3xl font-bold text-gray-900 mb-6">플랫폼의 주요 기능</h2>
-							<p className="text-lg text-gray-600 mb-8">AI 기반 포트폴리오 리밸런서가 어떻게 투자 전략을 변화시킬 수 있는지 알아보세요.</p>
+							<p className="text-lg text-gray-600 mb-8">AI 기반 포트폴리오 리밸런서가 어떻게 투자 전략을 변화시킬 수 있는지 알아보실 수 있습니다.</p>
 
 							<div className="space-y-4">
 								<div className="flex items-center space-x-3">

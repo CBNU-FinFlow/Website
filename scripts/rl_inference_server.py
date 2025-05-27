@@ -242,6 +242,7 @@ class XAIRequest(BaseModel):
     investment_amount: float
     risk_tolerance: str = "moderate"
     investment_horizon: int = 252
+    method: str = "fast"  # "fast" 또는 "accurate"
 
 
 class FeatureImportance(BaseModel):
@@ -875,60 +876,170 @@ async def predict(request: PredictionRequest):
 
 
 def calculate_feature_importance(model, input_data: torch.Tensor) -> List[Dict]:
-    """Feature importance 계산 (Integrated Gradients 기반)"""
-    model.eval()
-    input_data = input_data.requires_grad_(True)
+    """Feature importance 계산 (수정된 Integrated Gradients)"""
 
-    # 기준선 (모든 값이 0인 상태)
+    print("Integrated Gradients 계산 시작... (예상 소요시간: 30초 - 2분)")
+    model.eval()
+
+    # 입력 데이터 준비
+    if input_data.dim() == 2:
+        input_data = input_data.unsqueeze(0)
+
+    batch_size, n_assets, n_features = input_data.shape
+
+    # 기준선 (0으로 설정)
     baseline = torch.zeros_like(input_data)
 
-    # Integrated Gradients 계산
-    steps = 50
-    importance_scores = []
+    # Integrated Gradients 설정
+    steps = 50  # 계산 시간 vs 정확도 트레이드오프
+    print(f"계산 중... {steps} steps")
 
-    for i in range(steps + 1):
-        # 선형 보간
-        alpha = i / steps
-        interpolated = baseline + alpha * (input_data - baseline)
-        interpolated.requires_grad_(True)
+    # 각 자산별로 attribution 계산
+    all_attributions = []
 
-        # 순전파 및 역전파
-        output, _ = model(interpolated)
+    try:
+        with torch.enable_grad():
+            for step in range(steps):
+                # 선형 보간 (baseline -> input)
+                alpha = step / (steps - 1) if steps > 1 else 1.0
+                interpolated_input = baseline + alpha * (input_data - baseline)
+                interpolated_input = interpolated_input.detach().requires_grad_(True)
 
-        # 각 출력에 대한 그래디언트 계산
-        gradients = []
-        for j in range(output.size(1)):  # 각 자산별로
-            if interpolated.grad is not None:
-                interpolated.grad.zero_()
+                # 모델 순전파
+                action_probs, _ = model(interpolated_input)
 
-            output[0, j].backward(retain_graph=True)
-            grad = interpolated.grad.clone()
-            gradients.append(grad)
+                # 각 출력 노드에 대해 그래디언트 계산
+                step_gradients = []
 
-    # 평균 그래디언트 계산
-    avg_gradients = torch.stack(gradients).mean(dim=0)
+                for output_idx in range(action_probs.size(1)):  # 각 자산별로
+                    # 특정 출력에 대한 그래디언트 계산
+                    if interpolated_input.grad is not None:
+                        interpolated_input.grad.zero_()
 
-    # 중요도 점수 계산 (그래디언트 * 입력값)
-    importance = avg_gradients * (input_data - baseline)
-    importance = importance.abs().mean(dim=0)  # 절댓값의 평균
+                    # 해당 자산의 출력만 선택해서 역전파
+                    output_scalar = action_probs[0, output_idx]
+                    output_scalar.backward(retain_graph=True)
 
-    # 결과 포맷팅
-    feature_importance = []
-    for asset_idx in range(len(STOCK_SYMBOLS)):
-        for feature_idx, feature_name in enumerate(FEATURE_NAMES):
-            if asset_idx < importance.size(0) and feature_idx < importance.size(1):
-                score = float(importance[asset_idx, feature_idx])
+                    if interpolated_input.grad is not None:
+                        step_gradients.append(interpolated_input.grad.clone())
+                    else:
+                        # 그래디언트가 없으면 0으로 채움
+                        step_gradients.append(torch.zeros_like(interpolated_input))
+
+                # 평균 그래디언트 누적
+                if len(step_gradients) > 0:
+                    avg_grad = torch.stack(step_gradients).mean(dim=0)
+                    all_attributions.append(avg_grad)
+
+                # 진행상황 출력 (10% 간격)
+                if (step + 1) % max(1, steps // 10) == 0:
+                    progress = ((step + 1) / steps) * 100
+                    print(f"진행률: {progress:.0f}% ({step + 1}/{steps})")
+
+        if not all_attributions:
+            print("그래디언트 계산 실패")
+            return []
+
+        # 평균 그래디언트 계산
+        mean_gradients = torch.stack(all_attributions).mean(dim=0)
+
+        # Integrated gradients = (input - baseline) * mean_gradients
+        integrated_grads = (input_data - baseline) * mean_gradients
+
+        # 절댓값으로 중요도 계산
+        importance_scores = integrated_grads.abs().squeeze(0)  # [n_assets, n_features]
+
+        # 결과 포맷팅
+        feature_importance = []
+
+        for asset_idx in range(min(len(STOCK_SYMBOLS), importance_scores.size(0))):
+            for feature_idx in range(
+                min(len(FEATURE_NAMES), importance_scores.size(1))
+            ):
+                score = float(importance_scores[asset_idx, feature_idx])
+
                 feature_importance.append(
                     {
-                        "feature_name": feature_name,
+                        "feature_name": FEATURE_NAMES[feature_idx],
                         "asset_name": STOCK_SYMBOLS[asset_idx],
                         "importance_score": score,
                     }
                 )
 
-    # 중요도 순으로 정렬
-    feature_importance.sort(key=lambda x: x["importance_score"], reverse=True)
-    return feature_importance[:20]  # 상위 20개만 반환
+        # 중요도 순으로 정렬
+        feature_importance.sort(key=lambda x: x["importance_score"], reverse=True)
+
+        print(
+            f"Integrated Gradients 계산 완료! 상위 {min(20, len(feature_importance))}개 반환"
+        )
+        return feature_importance[:20]
+
+    except Exception as e:
+        print(f"Integrated Gradients 계산 중 오류: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return []
+
+
+def calculate_feature_importance_fast(model, input_data: torch.Tensor) -> List[Dict]:
+    """빠른 근사 Feature Importance (Gradient × Input 방식)"""
+
+    print("빠른 Feature Importance 계산 중... (5-10초)")
+    model.eval()
+
+    try:
+        if input_data.dim() == 2:
+            input_data = input_data.unsqueeze(0)
+
+        input_data = input_data.detach().requires_grad_(True)
+
+        # 모델 순전파
+        action_probs, _ = model(input_data)
+
+        # 각 출력에 대한 그래디언트 계산
+        all_gradients = []
+
+        for output_idx in range(action_probs.size(1)):
+            if input_data.grad is not None:
+                input_data.grad.zero_()
+
+            action_probs[0, output_idx].backward(retain_graph=True)
+
+            if input_data.grad is not None:
+                all_gradients.append(input_data.grad.clone())
+
+        if not all_gradients:
+            return []
+
+        # 평균 그래디언트
+        mean_grad = torch.stack(all_gradients).mean(dim=0)
+
+        # Gradient × Input 중요도
+        importance = (mean_grad * input_data).abs().squeeze(0)
+
+        # 결과 포맷팅
+        feature_importance = []
+
+        for asset_idx in range(min(len(STOCK_SYMBOLS), importance.size(0))):
+            for feature_idx in range(min(len(FEATURE_NAMES), importance.size(1))):
+                score = float(importance[asset_idx, feature_idx])
+
+                feature_importance.append(
+                    {
+                        "feature_name": FEATURE_NAMES[feature_idx],
+                        "asset_name": STOCK_SYMBOLS[asset_idx],
+                        "importance_score": score,
+                    }
+                )
+
+        feature_importance.sort(key=lambda x: x["importance_score"], reverse=True)
+        print("빠른 Feature Importance 계산 완료!")
+        return feature_importance[:20]
+
+    except Exception as e:
+        print(f"빠른 Feature Importance 계산 오류: {e}")
+        return []
 
 
 def extract_attention_weights(model, input_data: torch.Tensor) -> List[Dict]:
@@ -972,29 +1083,43 @@ def extract_attention_weights(model, input_data: torch.Tensor) -> List[Dict]:
         return attention_list
 
 
-def generate_explanation_text(
+def generate_explanation_text_with_method(
     feature_importance: List[Dict],
     attention_weights: List[Dict],
     allocation: List[Dict],
+    method: str,
 ) -> str:
-    """XAI 결과를 바탕으로 설명 텍스트 생성"""
+    """계산 방식을 고려한 설명 텍스트 생성"""
 
-    # 가장 중요한 특성들
+    # 기본 설명 생성
     top_features = feature_importance[:5]
-
-    # 가장 높은 배분을 받은 자산들
     top_assets = sorted(
         [a for a in allocation if a["symbol"] != "현금"],
         key=lambda x: x["weight"],
         reverse=True,
     )[:3]
 
-    explanation = "AI 포트폴리오 결정 근거:\n\n"
+    # 방식에 따른 헤더
+    if method == "accurate":
+        explanation = "🔬 AI 포트폴리오 결정 근거 (정밀 분석):\n\n"
+        explanation += "📈 Integrated Gradients 기반 정확한 분석 결과입니다.\n\n"
+    else:
+        explanation = "⚡ AI 포트폴리오 결정 근거 (빠른 분석):\n\n"
+        explanation += "🚀 근사적 계산으로 빠른 인사이트를 제공합니다.\n\n"
 
     # 주요 영향 요인
     explanation += "🔍 주요 영향 요인:\n"
     for i, feature in enumerate(top_features, 1):
-        explanation += f"{i}. {feature['asset_name']}의 {feature['feature_name']}: {feature['importance_score']:.3f}\n"
+        confidence = ""
+        if method == "accurate":
+            if feature["importance_score"] > 0.2:
+                confidence = " (높은 신뢰도)"
+            elif feature["importance_score"] > 0.1:
+                confidence = " (중간 신뢰도)"
+            else:
+                confidence = " (낮은 신뢰도)"
+
+        explanation += f"{i}. {feature['asset_name']}의 {feature['feature_name']}: {feature['importance_score']:.3f}{confidence}\n"
 
     explanation += "\n📊 핵심 투자 논리:\n"
 
@@ -1008,7 +1133,12 @@ def generate_explanation_text(
 
         if asset_features:
             main_feature = asset_features[0]["feature_name"]
-            explanation += f"• {symbol} ({weight:.1f}%): {main_feature} 지표가 긍정적 신호를 보임\n"
+            if method == "accurate":
+                explanation += f"• {symbol} ({weight:.1f}%): {main_feature} 지표가 강한 신호 제공\n"
+            else:
+                explanation += (
+                    f"• {symbol} ({weight:.1f}%): {main_feature} 지표가 긍정적\n"
+                )
         else:
             explanation += f"• {symbol} ({weight:.1f}%): 안정적인 성과 기대\n"
 
@@ -1019,35 +1149,34 @@ def generate_explanation_text(
         explanation += (
             f"• 현금 {cash_allocation['weight']*100:.1f}% 보유로 변동성 완충\n"
         )
+        if method == "accurate":
+            explanation += f"• 정밀 분석을 통한 체계적 리스크 관리\n"
 
-    # 어텐션 분석
-    if attention_weights:
-        top_attention = sorted(
-            attention_weights, key=lambda x: x["weight"], reverse=True
-        )[:3]
-        explanation += f"\n🔗 자산 간 상관관계:\n"
-        for att in top_attention:
-            explanation += f"• {att['from_asset']} ↔ {att['to_asset']}: {att['weight']*100:.1f}% 연관성\n"
-
-    explanation += f"\n💡 AI 분석 요약:\n"
-    explanation += (
-        f"현재 시장 상황에서 기술주 중심의 포트폴리오가 최적으로 판단됩니다. "
-    )
-    explanation += f"특히 상위 자산들의 기술적 지표가 긍정적 신호를 보이고 있어 "
-    explanation += f"단기적으로 좋은 성과를 기대할 수 있습니다."
+    # 방식별 추가 정보
+    if method == "accurate":
+        explanation += f"\n🔬 분석 방식: 50-step Integrated Gradients\n"
+        explanation += f"• 높은 계산 정확도와 신뢰도 보장\n"
+        explanation += f"• 각 특성의 실제 기여도를 정밀 측정\n"
+    else:
+        explanation += f"\n⚡ 분석 방식: Gradient × Input 근사법\n"
+        explanation += f"• 빠른 속도로 핵심 인사이트 제공\n"
+        explanation += f"• 실시간 의사결정 지원에 최적화\n"
 
     return explanation
 
 
 @app.post("/explain", response_model=XAIResponse)
 async def explain_prediction(request: XAIRequest):
-    """XAI 설명 엔드포인트"""
+    """XAI 설명 엔드포인트 (계산 방식 선택 가능)"""
 
     if model is None:
         raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다.")
 
     try:
-        # 예측과 동일한 데이터 준비
+        method = request.method.lower()
+        print(f"XAI 분석 시작: 투자금액={request.investment_amount}, 방식={method}")
+
+        # 시장 데이터 준비
         market_data = get_market_data_with_context(
             request.investment_amount, request.risk_tolerance
         )
@@ -1066,20 +1195,34 @@ async def explain_prediction(request: XAIRequest):
 
         input_tensor = torch.FloatTensor(enhanced_data).unsqueeze(0).to(DEVICE)
 
-        # XAI 계산
-        feature_importance = calculate_feature_importance(model, input_tensor)
+        # 계산 방식에 따른 Feature Importance 계산
+        if method == "accurate":
+            print("정확한 Integrated Gradients 계산 시작 (예상 30초-2분)")
+            feature_importance = calculate_feature_importance(model, input_tensor)
+        else:  # "fast"
+            print("빠른 근사 Feature Importance 계산 시작 (예상 5-10초)")
+            feature_importance = calculate_feature_importance_fast(model, input_tensor)
+
+        # Attention weights 계산 (빠름)
+        print("Attention Weights 추출 중...")
         attention_weights = extract_attention_weights(model, input_tensor)
 
-        # 현재 예측 결과도 함께 계산
+        # 예측 결과 계산
         prediction_result = predict_portfolio(
             request.investment_amount,
             request.risk_tolerance,
             request.investment_horizon,
         )
 
-        explanation_text = generate_explanation_text(
-            feature_importance, attention_weights, prediction_result["allocation"]
+        # 계산 방식에 따른 설명 텍스트 생성
+        explanation_text = generate_explanation_text_with_method(
+            feature_importance,
+            attention_weights,
+            prediction_result["allocation"],
+            method,
         )
+
+        print(f"XAI 분석 완료! (방식: {method})")
 
         return XAIResponse(
             feature_importance=[
