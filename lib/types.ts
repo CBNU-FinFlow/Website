@@ -59,3 +59,37 @@ export interface XAIRequest {
 	risk_tolerance: string;
 	investment_horizon: number;
 }
+
+// 새로운 시각화를 위한 타입들
+export interface StockPriceData {
+	date: string;
+	price: number;
+	volume: number;
+	symbol: string;
+}
+
+export interface CorrelationData {
+	stock1: string;
+	stock2: string;
+	correlation: number;
+}
+
+export interface RiskReturnData {
+	symbol: string;
+	risk: number;
+	return: number;
+	allocation: number;
+}
+
+export interface SectorAllocation {
+	sector: string;
+	percentage: number;
+	stocks: string[];
+}
+
+export interface PerformanceHistory {
+	date: string;
+	portfolio: number;
+	spy: number;
+	qqq: number;
+}

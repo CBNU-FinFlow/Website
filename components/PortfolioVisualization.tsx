@@ -1,5 +1,8 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { PortfolioAllocation, PerformanceMetrics } from "@/lib/types";
+import { PortfolioAllocation, PerformanceMetrics, CorrelationData, RiskReturnData, PerformanceHistory, SectorAllocation } from "@/lib/types";
+import StockChart from "./StockChart";
+import CorrelationHeatmap from "./CorrelationHeatmap";
+import RiskReturnScatter from "./RiskReturnScatter";
 
 interface PortfolioVisualizationProps {
 	portfolioAllocation: PortfolioAllocation[];
@@ -10,7 +13,7 @@ interface PortfolioVisualizationProps {
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
 export default function PortfolioVisualization({ portfolioAllocation, performanceMetrics, showResults }: PortfolioVisualizationProps) {
-	// 파이 차트용 데이터 변환
+	// 파이 차트용 데이터 변환 (간소화)
 	const pieData = portfolioAllocation.map((item, index) => ({
 		name: item.stock,
 		value: parseFloat(item.percentage.toString()),
@@ -18,22 +21,62 @@ export default function PortfolioVisualization({ portfolioAllocation, performanc
 		color: COLORS[index % COLORS.length],
 	}));
 
-	// 성과 비교용 데이터 변환 (주요 지표만 선택)
-	const performanceData = performanceMetrics
-		.filter((metric) => ["연간 수익률", "샤프 비율", "최대 낙폭", "변동성"].includes(metric.label))
-		.map((metric) => ({
-			name: metric.label,
-			portfolio: parseFloat(metric.portfolio.replace("%", "")),
-			spy: parseFloat(metric.spy.replace("%", "")),
-			qqq: parseFloat(metric.qqq.replace("%", "")),
+	// 모의 데이터 생성 (실제 환경에서는 API에서 받아와야 함)
+	const generateMockData = () => {
+		// 성과 히스토리 데이터
+		const performanceHistory: PerformanceHistory[] = [];
+		const startDate = new Date();
+		startDate.setMonth(startDate.getMonth() - 12);
+
+		for (let i = 0; i < 252; i++) {
+			// 1년간 거래일
+			const date = new Date(startDate);
+			date.setDate(date.getDate() + i);
+
+			const portfolioReturn = Math.random() * 0.5 - 0.25 + (i * 0.05) / 252; // 연간 5% 상승 트렌드
+			const spyReturn = Math.random() * 0.4 - 0.2 + (i * 0.08) / 252; // 연간 8% 상승 트렌드
+			const qqqReturn = Math.random() * 0.6 - 0.3 + (i * 0.12) / 252; // 연간 12% 상승 트렌드
+
+			performanceHistory.push({
+				date: date.toISOString().split("T")[0],
+				portfolio: portfolioReturn,
+				spy: spyReturn,
+				qqq: qqqReturn,
+			});
+		}
+
+		// 상관관계 데이터
+		const correlationData: CorrelationData[] = [];
+		const stocks = portfolioAllocation.map((p) => p.stock);
+		for (let i = 0; i < stocks.length; i++) {
+			for (let j = i + 1; j < stocks.length; j++) {
+				correlationData.push({
+					stock1: stocks[i],
+					stock2: stocks[j],
+					correlation: (Math.random() - 0.5) * 1.8, // -0.9 ~ 0.9
+				});
+			}
+		}
+
+		// 리스크-수익률 데이터
+		const riskReturnData: RiskReturnData[] = portfolioAllocation.map((item) => ({
+			symbol: item.stock,
+			risk: Math.random() * 25 + 5, // 5-30% 리스크
+			return: Math.random() * 20 + 5, // 5-25% 수익률
+			allocation: parseFloat(item.percentage.toString()),
 		}));
+
+		return { performanceHistory, correlationData, riskReturnData, stocks };
+	};
+
+	const { performanceHistory, correlationData, riskReturnData, stocks } = generateMockData();
 
 	if (!showResults) {
 		return (
-			<div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center h-80">
+			<div className="bg-gray-50 rounded-lg p-6 flex items-center justify-center h-64">
 				<div className="text-gray-400 text-center">
-					<div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-						<svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
+					<div className="w-16 h-16 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
+						<svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
 							<path
 								fillRule="evenodd"
 								d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -41,107 +84,86 @@ export default function PortfolioVisualization({ portfolioAllocation, performanc
 							/>
 						</svg>
 					</div>
-					<p className="text-lg font-medium">포트폴리오 시각화</p>
-					<p className="text-sm mt-2">분석 완료 후 차트가 표시됩니다</p>
+					<p className="font-medium">포트폴리오 시각화</p>
+					<p className="text-sm mt-1">분석 완료 후 차트가 표시됩니다</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-			{/* 포트폴리오 배분 파이 차트 */}
-			<div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
-				<h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">포트폴리오 배분</h3>
-				<div className="space-y-8">
-					<div className="h-80">
+		<div className="space-y-6">
+			{/* 첫 번째 행: 성과 차트와 포트폴리오 배분 */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<StockChart data={performanceHistory} title="누적 수익률 비교" height={280} />
+
+				{/* 간소화된 포트폴리오 배분 */}
+				<div className="bg-white rounded-lg border border-gray-200 p-4">
+					<h4 className="text-lg font-semibold text-gray-900 mb-4">포트폴리오 배분</h4>
+					<div className="h-64">
 						<ResponsiveContainer width="100%" height="100%">
 							<PieChart>
-								<Pie
-									data={pieData}
-									cx="50%"
-									cy="50%"
-									labelLine={false}
-									label={({ name, value }) => `${name}: ${value}%`}
-									outerRadius={120}
-									fill="#8884d8"
-									dataKey="value"
-									stroke="#fff"
-									strokeWidth={2}
-								>
+								<Pie data={pieData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" stroke="#fff" strokeWidth={1}>
 									{pieData.map((entry, index) => (
 										<Cell key={`cell-${index}`} fill={entry.color} />
 									))}
 								</Pie>
 								<Tooltip
-									formatter={(value: any, name: any, props: any) => [`${value}% (${props.payload.amount.toLocaleString()}원)`, name]}
+									formatter={(value: any, name: any, props: any) => [`${value}%`, name]}
 									contentStyle={{
 										backgroundColor: "#fff",
-										border: "1px solid #e5e7eb",
-										borderRadius: "8px",
-										boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+										border: "1px solid #e2e8f0",
+										borderRadius: "6px",
+										fontSize: "12px",
 									}}
 								/>
 							</PieChart>
 						</ResponsiveContainer>
 					</div>
-
-					<div className="space-y-3">
-						<h4 className="font-semibold text-gray-700 mb-4 text-center">배분 상세</h4>
+					<div className="space-y-2 mt-2">
 						{pieData.map((item, index) => (
-							<div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:shadow-md transition-shadow">
-								<div className="flex items-center space-x-3">
-									<div className="w-5 h-5 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
-									<span className="font-semibold text-gray-800">{item.name}</span>
+							<div key={index} className="flex items-center justify-between text-sm">
+								<div className="flex items-center space-x-2">
+									<div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+									<span className="font-medium text-gray-700">{item.name}</span>
 								</div>
-								<div className="text-right">
-									<div className="font-bold text-lg text-gray-900">{item.value}%</div>
-									<div className="text-sm text-gray-600">{item.amount.toLocaleString()}원</div>
-								</div>
+								<span className="font-semibold text-gray-900">{item.value}%</span>
 							</div>
 						))}
 					</div>
 				</div>
 			</div>
 
-			{/* 성과 비교 바 차트 */}
-			<div className="bg-white rounded-xl p-8 shadow-lg border border-gray-100">
-				<h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">성과 비교</h3>
-				<div className="h-96">
-					<ResponsiveContainer width="100%" height="100%">
-						<BarChart data={performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-							<CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-							<XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-							<YAxis tick={{ fontSize: 12 }} />
-							<Tooltip
-								formatter={(value: any, name: any) => {
-									const unit = name === "portfolio" || name === "spy" || name === "qqq" ? "%" : "";
-									return [`${value}${unit}`, name === "portfolio" ? "AI 포트폴리오" : name.toUpperCase()];
-								}}
-								contentStyle={{
-									backgroundColor: "#fff",
-									border: "1px solid #e5e7eb",
-									borderRadius: "8px",
-									boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-								}}
-							/>
-							<Legend
-								formatter={(value) => {
-									if (value === "portfolio") return "AI 포트폴리오";
-									return value.toUpperCase();
-								}}
-								wrapperStyle={{ paddingTop: "20px" }}
-							/>
-							<Bar dataKey="portfolio" fill="#3B82F6" name="portfolio" radius={[4, 4, 0, 0]} />
-							<Bar dataKey="spy" fill="#10B981" name="spy" radius={[4, 4, 0, 0]} />
-							<Bar dataKey="qqq" fill="#F59E0B" name="qqq" radius={[4, 4, 0, 0]} />
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
-				<div className="mt-6 p-4 bg-blue-50 rounded-lg">
-					<p className="text-sm text-blue-700 text-center">
-						<strong>해석 가이드:</strong> 연간 수익률과 샤프 비율은 높을수록, 최대 낙폭과 변동성은 낮을수록 좋다.
-					</p>
+			{/* 두 번째 행: 리스크-수익률 분포와 상관관계 */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<RiskReturnScatter data={riskReturnData} />
+				<CorrelationHeatmap data={correlationData} stocks={stocks} />
+			</div>
+
+			{/* 세 번째 행: 성과 비교 테이블 (간소화) */}
+			<div className="bg-white rounded-lg border border-gray-200 p-4">
+				<h4 className="text-lg font-semibold text-gray-900 mb-4">주요 성과 지표</h4>
+				<div className="overflow-x-auto">
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-2 font-semibold text-gray-700">지표</th>
+								<th className="text-center py-2 font-semibold text-blue-600">AI 포트폴리오</th>
+								<th className="text-center py-2 font-semibold text-gray-500">S&P 500</th>
+								<th className="text-center py-2 font-semibold text-gray-500">NASDAQ</th>
+							</tr>
+						</thead>
+						<tbody>
+							{performanceMetrics.slice(0, 4).map((metric, index) => (
+								<tr key={index} className="border-b border-gray-100">
+									<td className="py-2 font-medium text-gray-900">{metric.label}</td>
+									<td className="py-2 text-center font-semibold text-blue-600">{metric.portfolio}</td>
+									<td className="py-2 text-center text-gray-600">{metric.spy}</td>
+									<td className="py-2 text-center text-gray-600">{metric.qqq}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				</div>
 			</div>
 		</div>
