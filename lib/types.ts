@@ -77,7 +77,7 @@ export interface CorrelationData {
 export interface RiskReturnData {
 	symbol: string;
 	risk: number;
-	return: number;
+	return_rate: number;
 	allocation: number;
 }
 
@@ -92,4 +92,52 @@ export interface PerformanceHistory {
 	portfolio: number;
 	spy: number;
 	qqq: number;
+}
+
+// 새로운 API 타입들
+export interface AllocationItem {
+	symbol: string;
+	weight: number;
+}
+
+export interface HistoricalRequest {
+	portfolio_allocation: AllocationItem[];
+	start_date?: string;
+	end_date?: string;
+}
+
+export interface HistoricalResponse {
+	performance_history: PerformanceHistory[];
+}
+
+export interface CorrelationRequest {
+	tickers: string[];
+	period?: string;
+}
+
+export interface CorrelationResponse {
+	correlation_data: CorrelationData[];
+}
+
+export interface RiskReturnRequest {
+	portfolio_allocation: AllocationItem[];
+	period?: string;
+}
+
+export interface RiskReturnResponse {
+	risk_return_data: RiskReturnData[];
+}
+
+export interface MarketData {
+	symbol: string;
+	name: string;
+	price: number;
+	change: number;
+	change_percent: number;
+	last_updated: string;
+}
+
+export interface MarketStatusResponse {
+	market_data: MarketData[];
+	last_updated: string;
 }

@@ -1,9 +1,21 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import HelpTooltip from "@/components/ui/HelpTooltip";
-import { PortfolioAllocation, PerformanceMetrics, CorrelationData, RiskReturnData, PerformanceHistory, SectorAllocation } from "@/lib/types";
+import {
+	PortfolioAllocation,
+	PerformanceMetrics,
+	CorrelationData,
+	RiskReturnData,
+	PerformanceHistory,
+	SectorAllocation,
+	AllocationItem,
+	HistoricalResponse,
+	CorrelationResponse,
+	RiskReturnResponse,
+} from "@/lib/types";
 import StockChart from "./StockChart";
 import CorrelationHeatmap from "./CorrelationHeatmap";
 import RiskReturnScatter from "./RiskReturnScatter";
+import { useState, useEffect } from "react";
 
 interface PortfolioVisualizationProps {
 	portfolioAllocation: PortfolioAllocation[];
@@ -14,6 +26,12 @@ interface PortfolioVisualizationProps {
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
 export default function PortfolioVisualization({ portfolioAllocation, performanceMetrics, showResults }: PortfolioVisualizationProps) {
+	// 상태 관리
+	const [performanceHistory, setPerformanceHistory] = useState<PerformanceHistory[]>([]);
+	const [correlationData, setCorrelationData] = useState<CorrelationData[]>([]);
+	const [riskReturnData, setRiskReturnData] = useState<RiskReturnData[]>([]);
+	const [loading, setLoading] = useState(false);
+
 	// 파이 차트용 데이터 변환 (간소화)
 	const pieData = portfolioAllocation.map((item, index) => ({
 		name: item.stock,
@@ -22,55 +40,85 @@ export default function PortfolioVisualization({ portfolioAllocation, performanc
 		color: COLORS[index % COLORS.length],
 	}));
 
-	// 모의 데이터 생성 (실제 환경에서는 API에서 받아와야 함)
-	const generateMockData = () => {
-		// 성과 히스토리 데이터
-		const performanceHistory: PerformanceHistory[] = [];
-		const startDate = new Date();
-		startDate.setMonth(startDate.getMonth() - 12);
-
-		for (let i = 0; i < 252; i++) {
-			// 1년간 거래일
-			const date = new Date(startDate);
-			date.setDate(date.getDate() + i);
-
-			const portfolioReturn = Math.random() * 0.5 - 0.25 + (i * 0.05) / 252; // 연간 5% 상승 트렌드
-			const spyReturn = Math.random() * 0.4 - 0.2 + (i * 0.08) / 252; // 연간 8% 상승 트렌드
-			const qqqReturn = Math.random() * 0.6 - 0.3 + (i * 0.12) / 252; // 연간 12% 상승 트렌드
-
-			performanceHistory.push({
-				date: date.toISOString().split("T")[0],
-				portfolio: portfolioReturn,
-				spy: spyReturn,
-				qqq: qqqReturn,
-			});
-		}
-
-		// 상관관계 데이터
-		const correlationData: CorrelationData[] = [];
-		const stocks = portfolioAllocation.map((p) => p.stock);
-		for (let i = 0; i < stocks.length; i++) {
-			for (let j = i + 1; j < stocks.length; j++) {
-				correlationData.push({
-					stock1: stocks[i],
-					stock2: stocks[j],
-					correlation: (Math.random() - 0.5) * 1.8, // -0.9 ~ 0.9
-				});
-			}
-		}
-
-		// 리스크-수익률 데이터
-		const riskReturnData: RiskReturnData[] = portfolioAllocation.map((item) => ({
+	// 포트폴리오 배분을 AllocationItem 형식으로 변환
+	const convertToAllocationItems = (portfolioAllocation: PortfolioAllocation[]): AllocationItem[] => {
+		return portfolioAllocation.map((item) => ({
 			symbol: item.stock,
-			risk: Math.random() * 25 + 5, // 5-30% 리스크
-			return: Math.random() * 20 + 5, // 5-25% 수익률
-			allocation: parseFloat(item.percentage.toString()),
+			weight: item.percentage / 100,
 		}));
-
-		return { performanceHistory, correlationData, riskReturnData, stocks };
 	};
 
-	const { performanceHistory, correlationData, riskReturnData, stocks } = generateMockData();
+	// 실제 데이터 가져오기
+	const fetchRealData = async () => {
+		if (!showResults || portfolioAllocation.length === 0) return;
+
+		setLoading(true);
+
+		try {
+			const allocationItems = convertToAllocationItems(portfolioAllocation);
+			const stocks = portfolioAllocation.map((p) => p.stock);
+
+			// 병렬로 데이터 요청
+			const [historicalRes, correlationRes, riskReturnRes] = await Promise.all([
+				fetch("/api/historical-performance", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						portfolio_allocation: allocationItems,
+						start_date: null, // 1년 전부터
+						end_date: null, // 오늘까지
+					}),
+				}),
+				fetch("/api/correlation-analysis", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						tickers: stocks,
+						period: "1y",
+					}),
+				}),
+				fetch("/api/risk-return-analysis", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						portfolio_allocation: allocationItems,
+						period: "1y",
+					}),
+				}),
+			]);
+
+			// 응답 처리
+			if (historicalRes.ok) {
+				const historicalData: HistoricalResponse = await historicalRes.json();
+				setPerformanceHistory(historicalData.performance_history);
+			} else {
+				console.error("성과 히스토리 조회 실패");
+			}
+
+			if (correlationRes.ok) {
+				const correlationDataRes: CorrelationResponse = await correlationRes.json();
+				setCorrelationData(correlationDataRes.correlation_data);
+			} else {
+				console.error("상관관계 분석 실패");
+			}
+
+			if (riskReturnRes.ok) {
+				const riskReturnDataRes: RiskReturnResponse = await riskReturnRes.json();
+				setRiskReturnData(riskReturnDataRes.risk_return_data);
+			} else {
+				console.error("리스크-수익률 분석 실패");
+			}
+		} catch (error) {
+			console.error("데이터 가져오기 오류:", error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	// 컴포넌트가 마운트되거나 포트폴리오가 변경될 때 데이터 가져오기
+	useEffect(() => {
+		fetchRealData();
+	}, [showResults, portfolioAllocation]);
 
 	if (!showResults) {
 		return (
@@ -86,17 +134,34 @@ export default function PortfolioVisualization({ portfolioAllocation, performanc
 						</svg>
 					</div>
 					<p className="font-medium">포트폴리오 시각화</p>
-					<p className="text-sm mt-1">분석 완료 후 차트가 표시됩니다</p>
+					<p className="text-sm mt-1">분석 완료 후 차트가 표시된다</p>
 				</div>
 			</div>
 		);
 	}
 
+	// 로딩 상태 표시
+	if (loading) {
+		return (
+			<div className="bg-white rounded-lg border border-gray-200 p-6">
+				<div className="flex items-center justify-center h-64">
+					<div className="text-center">
+						<div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+						<p className="text-gray-600">실제 시장 데이터를 불러오는 중...</p>
+						<p className="text-sm text-gray-400 mt-1">백테스트 및 상관관계 분석 진행 중</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	const stocks = portfolioAllocation.map((p) => p.stock);
+
 	return (
 		<div className="space-y-6">
 			{/* 첫 번째 행: 성과 차트와 포트폴리오 배분 */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<StockChart data={performanceHistory} title="누적 수익률 비교" height={280} />
+				<StockChart data={performanceHistory} title="누적 수익률 비교 (실제 백테스트)" height={280} />
 
 				{/* 간소화된 포트폴리오 배분 */}
 				<div className="bg-white rounded-lg border border-gray-200 p-4">

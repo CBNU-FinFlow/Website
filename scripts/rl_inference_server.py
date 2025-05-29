@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import glob
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -20,6 +20,21 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from datetime import datetime, timedelta
+import yfinance as yf
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# curl_cffi를 사용하여 Chrome 세션 생성
+try:
+    from curl_cffi import requests
+
+    # Chrome을 모방하는 세션 생성
+    session = requests.Session(impersonate="chrome")
+    print("curl_cffi 세션 생성 성공 - Chrome 모방 모드")
+except ImportError:
+    print("curl_cffi를 찾을 수 없음. 기본 요청 방식 사용")
+    session = None
 
 # ===============================
 # FinFlow-RL 모델 클래스 정의
@@ -261,6 +276,69 @@ class XAIResponse(BaseModel):
     feature_importance: List[FeatureImportance]
     attention_weights: List[AttentionWeight]
     explanation_text: str
+
+
+# 새로운 API용 모델 클래스들
+class HistoricalRequest(BaseModel):
+    portfolio_allocation: List[AllocationItem]
+    start_date: Optional[str] = None  # YYYY-MM-DD 형식, None이면 1년 전
+    end_date: Optional[str] = None  # YYYY-MM-DD 형식, None이면 오늘
+
+
+class PerformanceHistory(BaseModel):
+    date: str
+    portfolio: float
+    spy: float
+    qqq: float
+
+
+class HistoricalResponse(BaseModel):
+    performance_history: List[PerformanceHistory]
+
+
+class CorrelationRequest(BaseModel):
+    tickers: List[str]
+    period: str = "1y"  # 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
+
+
+class CorrelationData(BaseModel):
+    stock1: str
+    stock2: str
+    correlation: float
+
+
+class CorrelationResponse(BaseModel):
+    correlation_data: List[CorrelationData]
+
+
+class RiskReturnRequest(BaseModel):
+    portfolio_allocation: List[AllocationItem]
+    period: str = "1y"
+
+
+class RiskReturnData(BaseModel):
+    symbol: str
+    risk: float  # 연간 변동성 (%)
+    return_rate: float  # 연간 수익률 (%)
+    allocation: float  # 포트폴리오 비중 (%)
+
+
+class RiskReturnResponse(BaseModel):
+    risk_return_data: List[RiskReturnData]
+
+
+class MarketData(BaseModel):
+    symbol: str
+    name: str
+    price: float
+    change: float
+    change_percent: float
+    last_updated: str
+
+
+class MarketStatusResponse(BaseModel):
+    market_data: List[MarketData]
+    last_updated: str
 
 
 # 전역 변수
@@ -1527,6 +1605,434 @@ async def explain_prediction(request: XAIRequest):
         traceback.print_exc()
         raise HTTPException(
             status_code=500, detail="XAI 설명 생성 중 오류가 발생했습니다."
+        )
+
+
+# 새로운 API 엔드포인트들
+def calculate_historical_performance(
+    allocation: List[AllocationItem],
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> List[PerformanceHistory]:
+    """실제 백테스트 기반 성과 히스토리 계산"""
+    try:
+        # 날짜 설정
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y-%m-%d")
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+
+        # 포트폴리오 종목들 추출
+        portfolio_tickers = [
+            item.symbol for item in allocation if item.symbol != "현금"
+        ]
+        if not portfolio_tickers:
+            # 현금만 있는 경우 기본 수익률 0
+            return []
+
+        # 벤치마크 추가
+        all_tickers = portfolio_tickers + ["SPY", "QQQ"]
+
+        # 실제 가격 데이터 다운로드 (세션 사용)
+        print(f"다운로드 중: {all_tickers}, 기간: {start_date} ~ {end_date}")
+
+        # curl_cffi 세션이 있으면 사용, 없으면 기본 방식
+        if session is not None:
+            # 각 티커별로 개별 다운로드 (Rate Limit 회피)
+            data_dict = {}
+            for ticker in all_tickers:
+                try:
+                    ticker_obj = yf.Ticker(ticker, session=session)
+                    ticker_data = ticker_obj.history(start=start_date, end=end_date)
+                    if not ticker_data.empty:
+                        data_dict[ticker] = ticker_data
+                        print(f"✓ {ticker} 데이터 다운로드 성공")
+                    else:
+                        print(f"✗ {ticker} 데이터 없음")
+                except Exception as e:
+                    print(f"✗ {ticker} 다운로드 실패: {e}")
+
+            # 데이터 조합
+            if data_dict:
+                # 모든 티커의 Close 가격을 하나의 DataFrame으로 조합
+                close_prices = pd.DataFrame()
+                for ticker, ticker_data in data_dict.items():
+                    close_prices[ticker] = ticker_data["Close"]
+                close_prices = close_prices.dropna()
+            else:
+                print("모든 티커 다운로드 실패")
+                return []
+        else:
+            # 기본 방식
+            data = yf.download(
+                all_tickers, start=start_date, end=end_date, progress=False
+            )
+            if data.empty:
+                print("데이터를 가져올 수 없음")
+                return []
+
+            # 종가 데이터 추출
+            if len(all_tickers) == 1:
+                close_prices = data["Close"].to_frame()
+                close_prices.columns = all_tickers
+            else:
+                close_prices = data["Close"]
+
+        # 일일 수익률 계산
+        daily_returns = close_prices.pct_change().dropna()
+
+        # 포트폴리오 가중치 적용
+        portfolio_weights = {
+            item.symbol: item.weight for item in allocation if item.symbol != "현금"
+        }
+
+        # 포트폴리오 일일 수익률 계산
+        portfolio_daily_returns = []
+        for date in daily_returns.index:
+            daily_return = 0.0
+            for ticker in portfolio_tickers:
+                if ticker in daily_returns.columns and ticker in portfolio_weights:
+                    daily_return += (
+                        daily_returns.loc[date, ticker] * portfolio_weights[ticker]
+                    )
+            portfolio_daily_returns.append(daily_return)
+
+        # 누적 수익률 계산
+        portfolio_cumulative = np.cumprod(1 + np.array(portfolio_daily_returns)) - 1
+        spy_cumulative = (
+            np.cumprod(1 + daily_returns["SPY"].values) - 1
+            if "SPY" in daily_returns.columns
+            else np.zeros(len(portfolio_cumulative))
+        )
+        qqq_cumulative = (
+            np.cumprod(1 + daily_returns["QQQ"].values) - 1
+            if "QQQ" in daily_returns.columns
+            else np.zeros(len(portfolio_cumulative))
+        )
+
+        # 결과 생성
+        performance_history = []
+        for i, date in enumerate(daily_returns.index):
+            performance_history.append(
+                PerformanceHistory(
+                    date=date.strftime("%Y-%m-%d"),
+                    portfolio=float(portfolio_cumulative[i]),
+                    spy=float(spy_cumulative[i]),
+                    qqq=float(qqq_cumulative[i]),
+                )
+            )
+
+        return performance_history
+
+    except Exception as e:
+        print(f"백테스트 계산 오류: {e}")
+        return []
+
+
+def calculate_real_correlation(
+    tickers: List[str], period: str = "1y"
+) -> List[CorrelationData]:
+    """실제 종목 간 상관관계 계산"""
+    try:
+        # 현금 제외
+        stock_tickers = [ticker for ticker in tickers if ticker != "현금"]
+        if len(stock_tickers) < 2:
+            return []
+
+        # 가격 데이터 다운로드 (세션 사용)
+        print(f"상관관계 분석을 위한 데이터 다운로드: {stock_tickers}, 기간: {period}")
+
+        # curl_cffi 세션이 있으면 사용, 없으면 기본 방식
+        if session is not None:
+            # 각 티커별로 개별 다운로드 (Rate Limit 회피)
+            data_dict = {}
+            for ticker in stock_tickers:
+                try:
+                    ticker_obj = yf.Ticker(ticker, session=session)
+                    ticker_data = ticker_obj.history(period=period)
+                    if not ticker_data.empty:
+                        data_dict[ticker] = ticker_data
+                        print(f"✓ {ticker} 상관관계 데이터 다운로드 성공")
+                    else:
+                        print(f"✗ {ticker} 상관관계 데이터 없음")
+                except Exception as e:
+                    print(f"✗ {ticker} 상관관계 다운로드 실패: {e}")
+
+            # 데이터 조합
+            if len(data_dict) >= 2:
+                # 모든 티커의 Close 가격을 하나의 DataFrame으로 조합
+                close_prices = pd.DataFrame()
+                for ticker, ticker_data in data_dict.items():
+                    close_prices[ticker] = ticker_data["Close"]
+                close_prices = close_prices.dropna()
+            else:
+                print("상관관계 분석을 위한 충분한 데이터가 없음")
+                return []
+        else:
+            # 기본 방식
+            data = yf.download(stock_tickers, period=period, progress=False)
+            if data.empty:
+                return []
+
+            # 종가 데이터 추출
+            if len(stock_tickers) == 1:
+                close_prices = data["Close"].to_frame()
+                close_prices.columns = stock_tickers
+            else:
+                close_prices = data["Close"]
+
+        # 일일 수익률 계산
+        daily_returns = close_prices.pct_change().dropna()
+
+        # 상관관계 매트릭스 계산
+        correlation_matrix = daily_returns.corr()
+
+        # 상관관계 데이터 생성
+        correlation_data = []
+        available_tickers = list(correlation_matrix.columns)
+        for i, stock1 in enumerate(available_tickers):
+            for j, stock2 in enumerate(available_tickers):
+                if i < j:  # 중복 제거
+                    correlation = correlation_matrix.loc[stock1, stock2]
+                    if not np.isnan(correlation):
+                        correlation_data.append(
+                            CorrelationData(
+                                stock1=stock1,
+                                stock2=stock2,
+                                correlation=float(correlation),
+                            )
+                        )
+
+        return correlation_data
+
+    except Exception as e:
+        print(f"상관관계 계산 오류: {e}")
+        return []
+
+
+def calculate_risk_return_data(
+    allocation: List[AllocationItem], period: str = "1y"
+) -> List[RiskReturnData]:
+    """실제 리스크-수익률 데이터 계산"""
+    try:
+        # 포트폴리오 종목들 추출
+        portfolio_tickers = [
+            item.symbol for item in allocation if item.symbol != "현금"
+        ]
+        if not portfolio_tickers:
+            return []
+
+        # 가격 데이터 다운로드 (세션 사용)
+        print(
+            f"리스크-수익률 분석을 위한 데이터 다운로드: {portfolio_tickers}, 기간: {period}"
+        )
+
+        # curl_cffi 세션이 있으면 사용, 없으면 기본 방식
+        if session is not None:
+            # 각 티커별로 개별 다운로드 (Rate Limit 회피)
+            data_dict = {}
+            for ticker in portfolio_tickers:
+                try:
+                    ticker_obj = yf.Ticker(ticker, session=session)
+                    ticker_data = ticker_obj.history(period=period)
+                    if not ticker_data.empty:
+                        data_dict[ticker] = ticker_data
+                        print(f"✓ {ticker} 리스크-수익률 데이터 다운로드 성공")
+                    else:
+                        print(f"✗ {ticker} 리스크-수익률 데이터 없음")
+                except Exception as e:
+                    print(f"✗ {ticker} 리스크-수익률 다운로드 실패: {e}")
+
+            # 데이터 조합
+            if data_dict:
+                # 모든 티커의 Close 가격을 하나의 DataFrame으로 조합
+                close_prices = pd.DataFrame()
+                for ticker, ticker_data in data_dict.items():
+                    close_prices[ticker] = ticker_data["Close"]
+                close_prices = close_prices.dropna()
+            else:
+                print("리스크-수익률 분석을 위한 데이터가 없음")
+                return []
+        else:
+            # 기본 방식
+            data = yf.download(portfolio_tickers, period=period, progress=False)
+            if data.empty:
+                return []
+
+            # 종가 데이터 추출
+            if len(portfolio_tickers) == 1:
+                close_prices = data["Close"].to_frame()
+                close_prices.columns = portfolio_tickers
+            else:
+                close_prices = data["Close"]
+
+        # 일일 수익률 계산
+        daily_returns = close_prices.pct_change().dropna()
+
+        # 각 종목별 리스크-수익률 계산
+        risk_return_data = []
+        for item in allocation:
+            if item.symbol == "현금":
+                continue
+
+            if item.symbol in daily_returns.columns:
+                returns = daily_returns[item.symbol]
+
+                # 연간 수익률 계산 (252 거래일 기준)
+                annual_return = returns.mean() * 252 * 100
+
+                # 연간 변동성 계산 (표준편차)
+                annual_volatility = returns.std() * np.sqrt(252) * 100
+
+                risk_return_data.append(
+                    RiskReturnData(
+                        symbol=item.symbol,
+                        risk=float(annual_volatility),
+                        return_rate=float(annual_return),
+                        allocation=float(item.weight * 100),
+                    )
+                )
+
+        return risk_return_data
+
+    except Exception as e:
+        print(f"리스크-수익률 계산 오류: {e}")
+        return []
+
+
+def get_real_market_data() -> MarketStatusResponse:
+    """실시간 시장 데이터 가져오기"""
+    try:
+        # 주요 시장 지수들
+        market_symbols = {
+            "^GSPC": "S&P 500",
+            "^IXIC": "NASDAQ",
+            "^VIX": "VIX 변동성 지수",
+            "KRW=X": "USD/KRW 환율",
+        }
+
+        market_data = []
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        for symbol, name in market_symbols.items():
+            try:
+                # curl_cffi 세션이 있으면 사용, 없으면 기본 방식
+                if session is not None:
+                    ticker = yf.Ticker(symbol, session=session)
+                    print(f"✓ {name} 데이터 다운로드 시도 (세션 사용)")
+                else:
+                    ticker = yf.Ticker(symbol)
+                    print(f"✓ {name} 데이터 다운로드 시도 (기본 방식)")
+
+                hist = ticker.history(period="2d")  # 최근 2일 데이터
+
+                if not hist.empty:
+                    current_price = hist["Close"].iloc[-1]
+                    previous_price = (
+                        hist["Close"].iloc[-2] if len(hist) > 1 else current_price
+                    )
+
+                    change = current_price - previous_price
+                    change_percent = (
+                        (change / previous_price) * 100 if previous_price != 0 else 0
+                    )
+
+                    market_data.append(
+                        MarketData(
+                            symbol=symbol,
+                            name=name,
+                            price=float(current_price),
+                            change=float(change),
+                            change_percent=float(change_percent),
+                            last_updated=current_time,
+                        )
+                    )
+                    print(f"✓ {name} 데이터 다운로드 성공")
+                else:
+                    print(f"✗ {name} 히스토리 데이터 없음")
+
+            except Exception as e:
+                print(f"✗ {symbol} 데이터 가져오기 실패: {e}")
+                # 실패한 경우 기본값 추가
+                market_data.append(
+                    MarketData(
+                        symbol=symbol,
+                        name=name,
+                        price=0.0,
+                        change=0.0,
+                        change_percent=0.0,
+                        last_updated=current_time,
+                    )
+                )
+
+        return MarketStatusResponse(market_data=market_data, last_updated=current_time)
+
+    except Exception as e:
+        print(f"시장 데이터 가져오기 오류: {e}")
+        return MarketStatusResponse(
+            market_data=[], last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+
+@app.post("/historical-performance", response_model=HistoricalResponse)
+async def get_historical_performance(request: HistoricalRequest):
+    """실제 백테스트 기반 성과 히스토리"""
+    try:
+        performance_history = calculate_historical_performance(
+            request.portfolio_allocation, request.start_date, request.end_date
+        )
+
+        return HistoricalResponse(performance_history=performance_history)
+
+    except Exception as e:
+        print(f"성과 히스토리 조회 오류: {e}")
+        raise HTTPException(
+            status_code=500, detail="성과 히스토리 조회 중 오류가 발생했습니다."
+        )
+
+
+@app.post("/correlation-analysis", response_model=CorrelationResponse)
+async def get_correlation_analysis(request: CorrelationRequest):
+    """실제 종목 간 상관관계 분석"""
+    try:
+        correlation_data = calculate_real_correlation(request.tickers, request.period)
+
+        return CorrelationResponse(correlation_data=correlation_data)
+
+    except Exception as e:
+        print(f"상관관계 분석 오류: {e}")
+        raise HTTPException(
+            status_code=500, detail="상관관계 분석 중 오류가 발생했습니다."
+        )
+
+
+@app.post("/risk-return-analysis", response_model=RiskReturnResponse)
+async def get_risk_return_analysis(request: RiskReturnRequest):
+    """실제 리스크-수익률 분석"""
+    try:
+        risk_return_data = calculate_risk_return_data(
+            request.portfolio_allocation, request.period
+        )
+
+        return RiskReturnResponse(risk_return_data=risk_return_data)
+
+    except Exception as e:
+        print(f"리스크-수익률 분석 오류: {e}")
+        raise HTTPException(
+            status_code=500, detail="리스크-수익률 분석 중 오류가 발생했습니다."
+        )
+
+
+@app.get("/market-status", response_model=MarketStatusResponse)
+async def get_market_status():
+    """실시간 시장 데이터"""
+    try:
+        return get_real_market_data()
+
+    except Exception as e:
+        print(f"시장 데이터 조회 오류: {e}")
+        raise HTTPException(
+            status_code=500, detail="시장 데이터 조회 중 오류가 발생했습니다."
         )
 
 

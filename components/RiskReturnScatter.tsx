@@ -31,7 +31,7 @@ export default function RiskReturnScatter({ data }: RiskReturnScatterProps) {
 					<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
 						<CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
 						<XAxis type="number" dataKey="risk" name="리스크" tick={{ fontSize: 12 }} label={{ value: "리스크 (%)", position: "insideBottom", offset: -10, style: { fontSize: "12px" } }} />
-						<YAxis type="number" dataKey="return" name="수익률" tick={{ fontSize: 12 }} label={{ value: "수익률 (%)", angle: -90, position: "insideLeft", style: { fontSize: "12px" } }} />
+						<YAxis type="number" dataKey="return_rate" name="수익률" tick={{ fontSize: 12 }} label={{ value: "수익률 (%)", angle: -90, position: "insideLeft", style: { fontSize: "12px" } }} />
 						<Tooltip
 							formatter={(value: any, name: any, props: any) => {
 								if (name === "리스크") return [`${Number(value).toFixed(2)}%`, "리스크"];
@@ -45,7 +45,7 @@ export default function RiskReturnScatter({ data }: RiskReturnScatterProps) {
 									return (
 										<div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
 											<p className="font-semibold text-gray-900">{data.symbol}</p>
-											<p className="text-sm text-gray-600">수익률: {data.return.toFixed(2)}%</p>
+											<p className="text-sm text-gray-600">수익률: {data.return_rate.toFixed(2)}%</p>
 											<p className="text-sm text-gray-600">리스크: {data.risk.toFixed(2)}%</p>
 											<p className="text-sm text-gray-600">비중: {data.allocation.toFixed(1)}%</p>
 										</div>
