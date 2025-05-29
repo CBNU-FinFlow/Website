@@ -1,4 +1,7 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { QuickMetrics, PortfolioAllocation } from "@/lib/types";
 
 interface PortfolioStatusProps {
@@ -15,10 +18,14 @@ export default function PortfolioStatus({ investmentAmount, quickMetrics, portfo
 	return (
 		<Card className="border border-gray-200 bg-white">
 			<CardHeader className="pb-4">
-				<CardTitle className="flex items-center space-x-2">
+				<div className="flex items-center space-x-2">
 					<div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
 					<span>실시간 포트폴리오</span>
-				</CardTitle>
+					<HelpTooltip
+						title="실시간 포트폴리오"
+						description="현재 구성된 포트폴리오의 실시간 상태를 보여준다. 총 자산 가치, 활성 포지션 수, 리스크 지표 등을 통해 포트폴리오의 현재 상황을 한눈에 파악할 수 있다. 베타와 알파는 시장 대비 위험도와 초과 수익을 나타낸다."
+					/>
+				</div>
 				<CardDescription>현재 포지션 및 실시간 손익</CardDescription>
 			</CardHeader>
 			<CardContent className="pt-0">

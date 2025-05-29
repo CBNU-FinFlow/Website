@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { StockPriceData, PerformanceHistory } from "@/lib/types";
 
 interface StockChartProps {
@@ -10,7 +11,13 @@ interface StockChartProps {
 export default function StockChart({ data, title, height = 300 }: StockChartProps) {
 	return (
 		<div className="bg-white rounded-lg border border-gray-200 p-4">
-			<h4 className="text-lg font-semibold text-gray-900 mb-4">{title}</h4>
+			<div className="flex items-center space-x-2 mb-4">
+				<h4 className="text-lg font-semibold text-gray-900">{title}</h4>
+				<HelpTooltip
+					title="누적 수익률 비교"
+					description="AI 포트폴리오와 주요 벤치마크(S&P 500, QQQ)의 1년간 누적 수익률을 비교한 차트다. 파란색 선이 AI 포트폴리오, 초록색이 S&P 500, 주황색이 QQQ ETF의 성과를 나타낸다. 위쪽에 위치할수록 더 높은 수익률을 의미한다."
+				/>
+			</div>
 			<div style={{ height }}>
 				<ResponsiveContainer width="100%" height="100%">
 					<AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

@@ -1,3 +1,4 @@
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { CorrelationData } from "@/lib/types";
 
 interface CorrelationHeatmapProps {
@@ -31,7 +32,13 @@ export default function CorrelationHeatmap({ data, stocks }: CorrelationHeatmapP
 
 	return (
 		<div className="bg-white rounded-lg border border-gray-200 p-4">
-			<h4 className="text-lg font-semibold text-gray-900 mb-4">종목 간 상관관계</h4>
+			<div className="flex items-center space-x-2 mb-4">
+				<h4 className="text-lg font-semibold text-gray-900">종목 간 상관관계</h4>
+				<HelpTooltip
+					title="종목 간 상관관계"
+					description="포트폴리오 내 종목들이 서로 얼마나 비슷하게 움직이는지 보여주는 히트맵이다. 빨간색은 같은 방향으로 움직이는 양의 상관관계, 파란색은 반대 방향으로 움직이는 음의 상관관계를 나타낸다. 숫자가 1에 가까울수록 강한 상관관계를 의미한다."
+				/>
+			</div>
 			<div className="overflow-x-auto">
 				<table className="w-full">
 					<thead>

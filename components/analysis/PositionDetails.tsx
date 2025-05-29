@@ -1,5 +1,8 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart } from "lucide-react";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { PortfolioAllocation } from "@/lib/types";
 
 interface PositionDetailsProps {
@@ -10,10 +13,14 @@ export default function PositionDetails({ portfolioAllocation }: PositionDetails
 	return (
 		<Card className="border border-gray-200 bg-white">
 			<CardHeader>
-				<CardTitle className="flex items-center space-x-2">
+				<div className="flex items-center space-x-2">
 					<PieChart className="h-5 w-5 text-blue-600" />
 					<span>포지션 상세</span>
-				</CardTitle>
+					<HelpTooltip
+						title="포지션 상세"
+						description="포트폴리오에 포함된 각 종목의 상세 정보를 보여준다. 투자 금액, 비중, 일일 변동률 등을 통해 개별 종목의 성과와 포트폴리오에서의 역할을 파악할 수 있다. 색상은 해당 종목의 당일 수익률을 나타낸다."
+					/>
+				</div>
 				<CardDescription>종목별 투자 현황 및 실시간 손익</CardDescription>
 			</CardHeader>
 			<CardContent>

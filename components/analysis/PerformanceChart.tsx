@@ -1,5 +1,8 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { QuickMetrics } from "@/lib/types";
 
 interface PerformanceChartProps {
@@ -12,7 +15,13 @@ export default function PerformanceChart({ quickMetrics, investmentAmount }: Per
 		<Card className="xl:col-span-2 border border-gray-200 bg-white">
 			<CardHeader className="pb-4">
 				<div className="flex items-center justify-between">
-					<CardTitle className="text-lg font-bold text-gray-900">포트폴리오 성과 시뮬레이션</CardTitle>
+					<div className="flex items-center space-x-2">
+						<CardTitle className="text-lg font-bold text-gray-900">포트폴리오 성과 시뮬레이션</CardTitle>
+						<HelpTooltip
+							title="포트폴리오 성과 시뮬레이션"
+							description="AI가 과거 데이터와 시장 분석을 바탕으로 예측한 포트폴리오의 1년간 수익률 추이다. 실제 수익률과 다를 수 있으며, 투자 참고용으로만 활용해야 한다. 벤치마크와의 비교를 통해 상대적 성과를 파악할 수 있다."
+						/>
+					</div>
 					<div className="flex items-center space-x-2">
 						<Badge className="bg-green-100 text-green-700 border-0">+{quickMetrics.annualReturn}</Badge>
 						<div className="flex items-center space-x-1 text-xs text-gray-500">

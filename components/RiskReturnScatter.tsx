@@ -1,4 +1,5 @@
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { RiskReturnData } from "@/lib/types";
 
 interface RiskReturnScatterProps {
@@ -18,7 +19,13 @@ export default function RiskReturnScatter({ data }: RiskReturnScatterProps) {
 
 	return (
 		<div className="bg-white rounded-lg border border-gray-200 p-4">
-			<h4 className="text-lg font-semibold text-gray-900 mb-4">리스크-수익률 분포</h4>
+			<div className="flex items-center space-x-2 mb-4">
+				<h4 className="text-lg font-semibold text-gray-900">리스크-수익률 분포</h4>
+				<HelpTooltip
+					title="리스크-수익률 분포"
+					description="각 종목의 예상 수익률(세로축)과 리스크(가로축)를 점으로 표현한 산점도다. 원의 크기는 포트폴리오에서의 비중을 나타내며, 오른쪽 위(높은 수익률, 높은 리스크)에 위치할수록 공격적인 투자, 왼쪽 아래에 위치할수록 보수적인 투자를 의미한다."
+				/>
+			</div>
 			<div style={{ height: 300 }}>
 				<ResponsiveContainer width="100%" height="100%">
 					<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { PortfolioAllocation, PerformanceMetrics, QuickMetrics, XAIData } from "@/lib/types";
 import PortfolioVisualization from "./PortfolioVisualization";
 import MarketStatusHeader from "./analysis/MarketStatusHeader";
@@ -162,7 +163,13 @@ export default function AnalysisModal({
 											<div className="text-xs text-gray-500">vs 벤치마크</div>
 										</div>
 										<div className="space-y-1">
-											<div className="text-sm text-gray-600">정보 비율</div>
+											<div className="flex items-center space-x-1">
+												<div className="text-sm text-gray-600">정보 비율</div>
+												<HelpTooltip
+													title="정보 비율 (Information Ratio)"
+													description="포트폴리오가 벤치마크를 얼마나 효율적으로 초과 수익을 달성하는지 측정하는 지표다. 초과 수익을 변동성으로 나눈 값으로, 높을수록 위험 대비 초과 수익이 우수하다는 의미다."
+												/>
+											</div>
 											<div className="text-xl font-bold text-gray-900">0.45</div>
 											<div className="text-xs text-green-600">+0.12 vs S&P500</div>
 										</div>
@@ -178,7 +185,13 @@ export default function AnalysisModal({
 											<div className="text-xs text-gray-500">리스크 조정</div>
 										</div>
 										<div className="space-y-1">
-											<div className="text-sm text-gray-600">트레이너 비율</div>
+											<div className="flex items-center space-x-1">
+												<div className="text-sm text-gray-600">트레이너 비율</div>
+												<HelpTooltip
+													title="트레이너 비율 (Treynor Ratio)"
+													description="포트폴리오의 초과 수익을 시장 위험(베타)으로 나눈 지표다. 시장 위험 대비 얼마나 효과적으로 수익을 창출하는지 보여주며, 높을수록 시장 위험 대비 수익률이 우수하다."
+												/>
+											</div>
 											<div className="text-xl font-bold text-gray-900">1.23</div>
 											<div className="text-xs text-blue-600">우수</div>
 										</div>
@@ -194,7 +207,13 @@ export default function AnalysisModal({
 											<div className="text-xs text-gray-500">분산도</div>
 										</div>
 										<div className="space-y-1">
-											<div className="text-sm text-gray-600">상관계수</div>
+											<div className="flex items-center space-x-1">
+												<div className="text-sm text-gray-600">상관계수</div>
+												<HelpTooltip
+													title="상관계수 (Correlation Coefficient)"
+													description="포트폴리오 내 자산들이 서로 얼마나 비슷하게 움직이는지 나타내는 지표다. 0에 가까울수록 독립적이고, 1에 가까울수록 동조화된다. 적절한 분산을 위해서는 낮은 상관관계가 유리하다."
+												/>
+											</div>
 											<div className="text-xl font-bold text-gray-900">0.78</div>
 											<div className="text-xs text-orange-600">적정</div>
 										</div>
@@ -210,7 +229,13 @@ export default function AnalysisModal({
 											<div className="text-xs text-gray-500">95% 신뢰구간</div>
 										</div>
 										<div className="space-y-1">
-											<div className="text-sm text-gray-600">VaR (1일)</div>
+											<div className="flex items-center space-x-1">
+												<div className="text-sm text-gray-600">VaR (1일)</div>
+												<HelpTooltip
+													title="VaR (Value at Risk)"
+													description="95% 확률로 하루 동안 발생할 수 있는 최대 손실 금액을 나타낸다. 예를 들어 VaR이 -2.3%라면 95% 확률로 하루 손실이 2.3%를 넘지 않는다는 의미다. 리스크 관리의 핵심 지표다."
+												/>
+											</div>
 											<div className="text-xl font-bold text-gray-900">-2.3%</div>
 											<div className="text-xs text-red-600">-{(Number(investmentAmount) * 0.023).toLocaleString()}원</div>
 										</div>
@@ -327,6 +352,10 @@ export default function AnalysisModal({
 												<CardTitle className="flex items-center space-x-2">
 													<PieChart className="h-5 w-5 text-blue-600" />
 													<span>섹터 분산</span>
+													<HelpTooltip
+														title="섹터 분산 (Sector Diversification)"
+														description="다양한 업종에 투자하여 특정 섹터의 위험을 분산시키는 전략이다. 기술주, 소비재, 헬스케어 등으로 나누어 투자함으로써 한 분야의 충격이 전체 포트폴리오에 미치는 영향을 줄일 수 있다."
+													/>
 												</CardTitle>
 												<CardDescription>업종별 투자 비중 및 리스크 분산</CardDescription>
 											</CardHeader>
@@ -425,6 +454,10 @@ export default function AnalysisModal({
 												<CardTitle className="flex items-center space-x-2">
 													<Globe className="h-5 w-5 text-green-600" />
 													<span>지역 분산</span>
+													<HelpTooltip
+														title="지역 분산 (Geographic Diversification)"
+														description="여러 국가와 지역에 투자하여 특정 국가의 경제적, 정치적 위험을 분산시키는 전략이다. 환율 변동과 각국의 경제 사이클 차이를 이용해 전체적인 안정성을 높일 수 있다."
+													/>
 												</CardTitle>
 												<CardDescription>지역별 투자 비중 및 통화 노출</CardDescription>
 											</CardHeader>
@@ -492,6 +525,10 @@ export default function AnalysisModal({
 											<CardTitle className="flex items-center space-x-2">
 												<AlertTriangle className="h-5 w-5 text-red-600" />
 												<span>리스크 분석 상세</span>
+												<HelpTooltip
+													title="리스크 분석 상세"
+													description="포트폴리오가 직면할 수 있는 다양한 위험 요소들을 분석한다. 시장 리스크, 집중 리스크, 유동성 리스크 등을 종합적으로 평가하여 투자자가 감수해야 할 위험 수준을 파악할 수 있다."
+												/>
 											</CardTitle>
 											<CardDescription>포트폴리오의 다양한 리스크 요소 분석</CardDescription>
 										</CardHeader>
@@ -587,6 +624,10 @@ export default function AnalysisModal({
 												<CardTitle className="flex items-center space-x-2">
 													<BarChart3 className="h-5 w-5 text-blue-600" />
 													<span>수익률 분포</span>
+													<HelpTooltip
+														title="수익률 분포 (Return Distribution)"
+														description="포트폴리오의 월별 예상 수익률이 어떻게 분포되어 있는지 보여준다. 정규분포에 가까울수록 예측 가능하며, 꼬리가 두꺼울수록 극단적인 수익/손실 가능성이 높다. 평균과 표준편차를 통해 기대 수익과 변동성을 파악할 수 있다."
+													/>
 												</CardTitle>
 												<CardDescription>월별 예상 수익률 분포</CardDescription>
 											</CardHeader>
@@ -619,6 +660,10 @@ export default function AnalysisModal({
 												<CardTitle className="flex items-center space-x-2">
 													<TrendingDown className="h-5 w-5 text-red-600" />
 													<span>드로우다운 분석</span>
+													<HelpTooltip
+														title="드로우다운 분석 (Drawdown Analysis)"
+														description="포트폴리오가 고점에서 저점까지 하락한 최대 손실 구간을 분석한다. 최대 드로우다운은 투자 기간 중 겪을 수 있는 최악의 손실을 나타내며, 회복 기간은 원래 수준을 되찾는 데 걸리는 시간을 의미한다."
+													/>
 												</CardTitle>
 												<CardDescription>최대 손실 구간 분석</CardDescription>
 											</CardHeader>
@@ -644,6 +689,10 @@ export default function AnalysisModal({
 											<CardTitle className="flex items-center space-x-2">
 												<Activity className="h-5 w-5 text-green-600" />
 												<span>벤치마크 대비 성과</span>
+												<HelpTooltip
+													title="벤치마크 대비 성과 (Benchmark Comparison)"
+													description="포트폴리오의 성과를 주요 시장 지수들과 비교한 결과다. S&P 500, NASDAQ 등의 벤치마크 대비 얼마나 우수한 성과를 보이는지 확인할 수 있으며, 같은 위험 수준에서 더 높은 수익을 달성했는지 평가할 수 있다."
+												/>
 											</CardTitle>
 											<CardDescription>주요 지수 및 ETF와의 성과 비교</CardDescription>
 										</CardHeader>

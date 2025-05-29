@@ -1,4 +1,7 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 import { PortfolioAllocation } from "@/lib/types";
 
 interface PortfolioHeatmapProps {
@@ -9,10 +12,14 @@ export default function PortfolioHeatmap({ portfolioAllocation }: PortfolioHeatm
 	return (
 		<Card className="border border-gray-200 bg-white overflow-visible">
 			<CardHeader>
-				<CardTitle className="flex items-center space-x-2">
+				<div className="flex items-center space-x-2">
 					<div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-500 rounded"></div>
 					<span>포트폴리오 히트맵</span>
-				</CardTitle>
+					<HelpTooltip
+						title="포트폴리오 히트맵"
+						description="각 종목의 투자 비중을 크기로, 수익률 성과를 색상으로 표현한 시각화다. 큰 사각형일수록 많은 비중을 차지하고, 초록색은 수익, 빨간색은 손실을 나타낸다. 포트폴리오의 구성과 성과를 한눈에 파악할 수 있다."
+					/>
+				</div>
 				<CardDescription>종목별 비중 및 성과 시각화</CardDescription>
 			</CardHeader>
 			<CardContent className="overflow-visible">
