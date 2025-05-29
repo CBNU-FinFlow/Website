@@ -104,39 +104,54 @@ export default function PortfolioVisualization({ portfolioAllocation, performanc
 						<h4 className="text-lg font-semibold text-gray-900">포트폴리오 배분</h4>
 						<HelpTooltip
 							title="포트폴리오 배분"
-							description="AI가 추천한 최적 투자 비중을 원형 차트로 표현한다. 각 종목의 색상과 크기는 전체 포트폴리오에서 차지하는 비중을 나타내며, 분산 투자를 통해 리스크를 관리하면서 수익을 극대화하는 구성이다."
+							description="AI가 추천한 최적 투자 비중을 원형 차트로 표현한다. 각 종목의 색상과 크기는 전체 포트폴리오에서 차지하는 비중을 나타내며, 분산 투자를 통해 리스크를 관리하면서 수익을 극대화하는 구성이다. 마우스를 올리면 상세 정보가 표시된다."
 						/>
 					</div>
-					<div className="h-64">
-						<ResponsiveContainer width="100%" height="100%">
-							<PieChart>
-								<Pie data={pieData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" stroke="#fff" strokeWidth={1}>
-									{pieData.map((entry, index) => (
-										<Cell key={`cell-${index}`} fill={entry.color} />
-									))}
-								</Pie>
-								<Tooltip
-									formatter={(value: any, name: any, props: any) => [`${value}%`, name]}
-									contentStyle={{
-										backgroundColor: "#fff",
-										border: "1px solid #e2e8f0",
-										borderRadius: "6px",
-										fontSize: "12px",
-									}}
-								/>
-							</PieChart>
-						</ResponsiveContainer>
-					</div>
-					<div className="space-y-2 mt-2">
-						{pieData.map((item, index) => (
-							<div key={index} className="flex items-center justify-between text-sm">
-								<div className="flex items-center space-x-2">
-									<div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-									<span className="font-medium text-gray-700">{item.name}</span>
-								</div>
-								<span className="font-semibold text-gray-900">{item.value}%</span>
-							</div>
-						))}
+					<div className="h-80 flex items-center justify-center group">
+						<div className="relative transition-transform duration-300 group-hover:scale-110">
+							<ResponsiveContainer width={300} height={300}>
+								<PieChart>
+									<Pie data={pieData} cx="50%" cy="50%" outerRadius={120} fill="#8884d8" dataKey="value" stroke="#fff" strokeWidth={2}>
+										{pieData.map((entry, index) => (
+											<Cell key={`cell-${index}`} fill={entry.color} />
+										))}
+									</Pie>
+									<Tooltip
+										formatter={(value: any, name: any, props: any) => [`${value}%`, name]}
+										contentStyle={{
+											backgroundColor: "#fff",
+											border: "1px solid #e2e8f0",
+											borderRadius: "8px",
+											fontSize: "14px",
+											padding: "16px",
+											boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+										}}
+										content={({ active, payload }) => {
+											if (active && payload && payload.length) {
+												const data = payload[0].payload;
+												return (
+													<div className="bg-white p-4 border border-gray-200 rounded-lg shadow-xl">
+														<p className="font-bold text-lg text-gray-900 mb-2">{data.name}</p>
+														<div className="space-y-2">
+															<p className="text-sm text-gray-600">
+																비중: <span className="font-semibold text-blue-600">{data.value}%</span>
+															</p>
+															<p className="text-sm text-gray-600">
+																투자금액: <span className="font-semibold text-green-600">{data.amount.toLocaleString()}원</span>
+															</p>
+															<p className="text-sm text-gray-600">
+																종목 유형: <span className="font-medium text-gray-800">{data.name === "현금" ? "안전자산" : "성장주"}</span>
+															</p>
+														</div>
+													</div>
+												);
+											}
+											return null;
+										}}
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+						</div>
 					</div>
 				</div>
 			</div>
