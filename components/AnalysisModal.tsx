@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortfolioAllocation, PerformanceMetrics, QuickMetrics, XAIData } from "@/lib/types";
 import PortfolioVisualization from "./PortfolioVisualization";
-import XAIVisualization from "./XAIVisualization";
 import MarketStatusHeader from "./analysis/MarketStatusHeader";
 import PerformanceChart from "./analysis/PerformanceChart";
 import PortfolioStatus from "./analysis/PortfolioStatus";
@@ -50,8 +49,6 @@ interface AnalysisModalProps {
 	xaiData: XAIData | null;
 	isLoadingXAI: boolean;
 	xaiProgress: number;
-	showXAI: boolean;
-	onBackToPortfolio: () => void;
 }
 
 export default function AnalysisModal({
@@ -67,8 +64,6 @@ export default function AnalysisModal({
 	xaiData,
 	isLoadingXAI,
 	xaiProgress,
-	showXAI,
-	onBackToPortfolio,
 }: AnalysisModalProps) {
 	const [isFullScreen, setIsFullScreen] = useState(false);
 
@@ -105,63 +100,6 @@ export default function AnalysisModal({
 		}
 		return `${baseClasses} dialog-fullscreen`;
 	};
-
-	if (showXAI) {
-		return (
-			<Dialog open={isOpen} onOpenChange={onClose}>
-				<DialogContent
-					className={getModalClassName()}
-					// 추가 props로 포지셔닝 강제
-					style={{
-						position: "fixed",
-						top: isFullScreen ? "0" : "50%",
-						left: isFullScreen ? "0" : "50%",
-						transform: isFullScreen ? "none" : "translate(-50%, -50%)",
-						width: isFullScreen ? "100vw" : "95vw",
-						height: isFullScreen ? "100vh" : "90vh",
-						maxWidth: "none",
-						maxHeight: "none",
-						margin: "0",
-						padding: "0",
-						borderRadius: isFullScreen ? "0" : "0.5rem",
-					}}
-				>
-					<DialogTitle className="sr-only">AI 의사결정 분석</DialogTitle>
-					<div className="flex flex-col h-full bg-white">
-						{/* 헤더 */}
-						<div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white flex-shrink-0">
-							<div className="flex items-center space-x-4">
-								<Button variant="ghost" size="sm" onClick={onBackToPortfolio} className="text-gray-600 hover:text-gray-900">
-									<ArrowLeft className="h-4 w-4 mr-2" />
-									포트폴리오로 돌아가기
-								</Button>
-								<div className="flex items-center space-x-2">
-									<div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-										<Brain className="w-4 h-4 text-white" />
-									</div>
-									<h2 className="text-xl font-bold text-gray-900">AI 의사결정 분석</h2>
-									<Badge className="bg-purple-100 text-purple-700 border-0">분석 완료</Badge>
-								</div>
-							</div>
-							<div className="flex items-center space-x-2">
-								<Button variant="ghost" size="sm" onClick={toggleFullScreen} className="text-gray-600 hover:text-gray-900">
-									{isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-								</Button>
-								<Button variant="ghost" size="sm" onClick={onClose} className="text-gray-600 hover:text-gray-900">
-									<X className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-
-						{/* XAI 컨텐츠 */}
-						<div className="flex-1 overflow-y-auto bg-gray-50" style={{ maxHeight: "calc(100% - 80px)" }}>
-							<XAIVisualization xaiData={xaiData} isLoading={isLoadingXAI} progress={xaiProgress} onAnalyze={onXAIAnalysis} portfolioAllocation={portfolioAllocation} />
-						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
-		);
-	}
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>

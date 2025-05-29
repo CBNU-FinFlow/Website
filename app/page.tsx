@@ -31,7 +31,6 @@ import {
 	TrendingDown,
 } from "lucide-react";
 import PortfolioVisualization from "@/components/PortfolioVisualization";
-import XAIVisualization from "@/components/XAIVisualization";
 import AnalysisModal from "@/components/AnalysisModal";
 import { XAIData } from "@/lib/types";
 
@@ -56,7 +55,6 @@ export default function FinFlowDemo() {
 	const [error, setError] = useState<string>("");
 	const [xaiData, setXaiData] = useState<XAIData | null>(null);
 	const [isLoadingXAI, setIsLoadingXAI] = useState(false);
-	const [showXAI, setShowXAI] = useState(false);
 	const [xaiMethod, setXaiMethod] = useState<"fast" | "accurate">("fast");
 	const [xaiProgress, setXaiProgress] = useState(0);
 
@@ -106,7 +104,6 @@ export default function FinFlowDemo() {
 
 		setIsAnalyzing(true);
 		setShowResults(false); // 기존 결과 숨기기
-		setShowXAI(false); // XAI 결과도 숨기기
 		setXaiData(null); // XAI 데이터 초기화
 		setError("");
 		setAnalysisProgress(0);
@@ -241,7 +238,6 @@ export default function FinFlowDemo() {
 		setIsLoadingXAI(true);
 		setXaiProgress(0);
 		setError("");
-		setShowXAI(true); // XAI 화면으로 전환
 
 		// 예상 시간 계산
 		const estimatedTime = method === "fast" ? "5-10초" : "30초-2분";
@@ -326,13 +322,6 @@ export default function FinFlowDemo() {
 	// 모달 닫기 핸들러
 	const handleCloseModal = () => {
 		setShowModal(false);
-		setShowXAI(false);
-		setXaiData(null);
-	};
-
-	// 포트폴리오 화면으로 돌아가기
-	const handleBackToPortfolio = () => {
-		setShowXAI(false);
 		setXaiData(null);
 	};
 
@@ -585,8 +574,6 @@ export default function FinFlowDemo() {
 				xaiData={xaiData}
 				isLoadingXAI={isLoadingXAI}
 				xaiProgress={xaiProgress}
-				showXAI={showXAI}
-				onBackToPortfolio={handleBackToPortfolio}
 			/>
 
 			{/* Features Section - 간소화 */}
