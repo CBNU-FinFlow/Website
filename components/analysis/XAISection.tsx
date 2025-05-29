@@ -49,7 +49,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						<Brain className="h-5 w-5 text-blue-600" />
 						<span>AI 의사결정 분석</span>
 					</CardTitle>
-					<CardDescription>AI가 이 포트폴리오를 선택한 이유를 자세히 알아보자</CardDescription>
+					<CardDescription>AI가 이 포트폴리오를 선택한 이유를 자세히 알아보세요.</CardDescription>
 				</CardHeader>
 				<CardContent className="p-8">
 					<div className="text-center space-y-6">
@@ -58,7 +58,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						</div>
 						<div className="space-y-2">
 							<h3 className="text-xl font-bold text-gray-900">AI 의사결정 분석 중</h3>
-							<p className="text-gray-600">AI가 포트폴리오 구성 과정을 분석하고 있다</p>
+							<p className="text-gray-600">AI가 포트폴리오 구성 과정을 분석하고 있습니다..</p>
 						</div>
 						<div className="space-y-3 max-w-md mx-auto">
 							<Progress value={xaiProgress} className="w-full h-2" />
@@ -91,7 +91,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						<Brain className="h-5 w-5 text-blue-600" />
 						<span>AI 의사결정 분석 결과</span>
 					</CardTitle>
-					<CardDescription>AI가 이 포트폴리오를 구성한 상세한 분석 결과</CardDescription>
+					<CardDescription>AI가 이 포트폴리오를 구성한 상세한 분석 결과입니다.</CardDescription>
 				</CardHeader>
 				<CardContent className="p-6 space-y-6">
 					<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -102,7 +102,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 									<TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
 									영향도 분석
 								</CardTitle>
-								<CardDescription className="text-sm">각 기술적 지표가 포트폴리오 결정에 미친 영향력</CardDescription>
+								<CardDescription className="text-sm">각 기술적 지표가 포트폴리오 결정에 미친 영향력입니다.</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="h-64">
@@ -150,7 +150,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 									<Eye className="w-4 h-4 mr-2 text-green-600" />
 									주목도 네트워크
 								</CardTitle>
-								<CardDescription className="text-sm">AI가 주목한 자산들 간의 관계</CardDescription>
+								<CardDescription className="text-sm">AI가 주목한 자산들 간의 관계입니다.</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="space-y-3 max-h-64 overflow-y-auto">
@@ -190,7 +190,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 								<Info className="w-4 h-4 mr-2 text-orange-600" />
 								AI 설명
 							</CardTitle>
-							<CardDescription className="text-sm">포트폴리오 구성에 대한 AI의 상세한 설명</CardDescription>
+							<CardDescription className="text-sm">포트폴리오 구성에 대한 AI의 상세한 설명입니다.</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="bg-blue-50 rounded-lg p-4">
@@ -199,7 +199,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 
 							<div className="mt-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
 								<p className="text-xs text-amber-800">
-									<strong>참고:</strong> 이 설명은 AI 모델의 내부 계산을 바탕으로 생성되었으며, 실제 시장 상황과 다를 수 있다.
+									<strong>참고:</strong> 이 설명은 AI 모델의 내부 계산을 바탕으로 생성되었으며, 실제 시장 상황과 다를 수 있습니다.
 								</p>
 							</div>
 						</CardContent>
@@ -235,7 +235,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 					<Brain className="h-5 w-5 text-blue-600" />
 					<span>AI 의사결정 분석</span>
 				</CardTitle>
-				<CardDescription>AI가 이 포트폴리오를 선택한 이유를 자세히 알아보자</CardDescription>
+				<CardDescription>AI가 이 포트폴리오를 선택한 이유를 자세히 알아보세요.</CardDescription>
 			</CardHeader>
 			<CardContent className="p-8">
 				<div className="text-center space-y-8">
@@ -247,9 +247,9 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						<p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
 							AI가 어떤 요소들을 고려하여 이 포트폴리오를 구성했는지
 							<br />
-							상세한 분석을 제공한다. 투자 결정의 투명성을 높이고
+							상세한 분석을 제공합니다. 투자 결정의 투명성을 높이고
 							<br />
-							<span className="text-blue-600 font-medium">신뢰할 수 있는 투자 근거</span>를 확인할 수 있다.
+							<span className="text-blue-600 font-medium">신뢰할 수 있는 투자 근거</span>를 확인하실 수 있습니다.
 						</p>
 					</div>
 
@@ -259,7 +259,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 								<Activity className="w-6 h-6 text-white" />
 							</div>
 							<h4 className="font-bold text-gray-900 mb-2">빠른 분석</h4>
-							<p className="text-sm text-gray-600 mb-4">주요 의사결정 요소와 기본적인 설명을 제공한다</p>
+							<p className="text-sm text-gray-600 mb-4">주요 의사결정 요소와 기본적인 설명을 제공합니다.</p>
 							<Button onClick={() => onXAIAnalysis("fast")} disabled={isLoadingXAI} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
 								<div className="flex items-center space-x-2">
 									<Brain className="w-4 h-4" />
@@ -273,7 +273,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 								<Target className="w-6 h-6 text-white" />
 							</div>
 							<h4 className="font-bold text-gray-900 mb-2">정밀 분석</h4>
-							<p className="text-sm text-gray-600 mb-4">상세한 특성 중요도와 종목별 근거를 분석한다</p>
+							<p className="text-sm text-gray-600 mb-4">상세한 특성 중요도와 종목별 근거를 분석합니다.</p>
 							<Button onClick={() => onXAIAnalysis("accurate")} disabled={isLoadingXAI} variant="outline" className="w-full border-gray-300 text-gray-700 hover:bg-gray-50">
 								<div className="flex items-center space-x-2">
 									<Brain className="w-4 h-4" />

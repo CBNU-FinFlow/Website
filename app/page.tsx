@@ -143,7 +143,7 @@ export default function FinFlowDemo() {
 			});
 
 			if (!response.ok) {
-				throw new Error("포트폴리오 예측에 실패했습니다.");
+				throw new Error("포트폴리오 예측에 실패했습니다. 다시 시도해주세요.");
 			}
 
 			const data = await response.json();
@@ -220,7 +220,7 @@ export default function FinFlowDemo() {
 			setShowModal(true); // 모달 열기
 			console.log("결과 설정 완료, showResults:", true);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해보세요.");
+			setError(err instanceof Error ? err.message : "서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
 		} finally {
 			setIsAnalyzing(false);
 			setAnalysisProgress(0);
@@ -231,7 +231,7 @@ export default function FinFlowDemo() {
 	// XAI 설명 가져오기 함수
 	const handleXAIAnalysis = async (method: "fast" | "accurate" = xaiMethod) => {
 		if (!investmentAmount) {
-			setError("먼저 포트폴리오 분석을 완료해보세요.");
+			setError("먼저 포트폴리오 분석을 완료해주세요.");
 			return;
 		}
 
@@ -274,7 +274,7 @@ export default function FinFlowDemo() {
 			});
 
 			if (!response.ok) {
-				throw new Error("XAI 분석에 실패했습니다.");
+				throw new Error("XAI 분석에 실패했습니다. 다시 시도해주세요.");
 			}
 
 			const data = await response.json();
@@ -312,7 +312,7 @@ export default function FinFlowDemo() {
 
 			setXaiData(data);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "XAI 분석 중 오류가 발생했습니다.");
+			setError(err instanceof Error ? err.message : "XAI 분석 중 오류가 발생했습니다. 다시 시도해주세요.");
 		} finally {
 			setIsLoadingXAI(false);
 			setXaiProgress(0);
@@ -392,7 +392,7 @@ export default function FinFlowDemo() {
 								<p className="text-lg text-gray-600 leading-relaxed">
 									강화학습 알고리즘이 시장 데이터를 실시간으로 분석하여
 									<br />
-									<span className="text-blue-700 font-medium">개인 맞춤형 포트폴리오</span>를 제안한다.
+									<span className="text-blue-700 font-medium">개인 맞춤형 포트폴리오</span>를 제안합니다.
 								</p>
 							</div>
 
@@ -513,7 +513,7 @@ export default function FinFlowDemo() {
 										<h3 className="text-xl font-bold text-gray-900">AI 분석 진행 중</h3>
 										<p className="text-gray-600">
 											투자 성향: <span className="font-semibold text-blue-600">{getRiskLevel(riskTolerance).label}</span> · 투자 기간:{" "}
-											<span className="font-semibold text-blue-600">{getHorizonLabel(investmentHorizon[0])}</span>
+											<span className="font-semibold text-purple-600">{getHorizonLabel(investmentHorizon[0])}</span>
 										</p>
 									</div>
 									<div className="space-y-3">
@@ -531,7 +531,7 @@ export default function FinFlowDemo() {
 									</div>
 									<div className="space-y-2">
 										<h3 className="text-xl font-bold text-gray-900">분석 완료!</h3>
-										<p className="text-gray-600">맞춤형 포트폴리오가 준비되었다</p>
+										<p className="text-gray-600">맞춤형 포트폴리오가 준비되었습니다.</p>
 									</div>
 								</div>
 							) : (
@@ -541,7 +541,7 @@ export default function FinFlowDemo() {
 									</div>
 									<div className="space-y-2">
 										<h3 className="text-xl font-bold text-gray-700">AI 포트폴리오 분석</h3>
-										<p className="text-gray-500">투자 정보를 입력하고 분석을 시작하자</p>
+										<p className="text-gray-500">투자 정보를 입력하고 분석을 시작해주세요.</p>
 									</div>
 									<div className="grid grid-cols-2 gap-4 mt-6">
 										<div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -584,11 +584,11 @@ export default function FinFlowDemo() {
 							<Activity className="w-3 h-3 mr-1" />
 							AI 기술
 						</Badge>
-						<h2 className="text-3xl font-bold text-gray-900 mb-4">어떻게 작동하나?</h2>
+						<h2 className="text-3xl font-bold text-gray-900 mb-4">어떻게 작동하나요?</h2>
 						<p className="text-lg text-gray-600 max-w-3xl mx-auto">
 							최신 강화학습 알고리즘이 시장 데이터를 실시간으로 분석하여
 							<br />
-							<span className="text-blue-700 font-medium">개인 맞춤형 포트폴리오 전략</span>을 제안한다.
+							<span className="text-blue-700 font-medium">개인 맞춤형 포트폴리오 전략</span>을 제안합니다.
 						</p>
 					</div>
 
@@ -601,7 +601,7 @@ export default function FinFlowDemo() {
 							<p className="text-gray-600">
 								<span className="font-semibold text-blue-600">250개 이상</span>의 종목 데이터와 기술적 지표를
 								<br />
-								실시간으로 수집하고 분석한다.
+								실시간으로 수집하고 분석합니다.
 							</p>
 						</div>
 
@@ -613,7 +613,7 @@ export default function FinFlowDemo() {
 							<p className="text-gray-600">
 								<span className="font-semibold text-green-600">PPO 강화학습</span> 알고리즘이 시장 환경에
 								<br />
-								적응하며 최적 전략을 학습한다.
+								적응하며 최적 전략을 학습합니다.
 							</p>
 						</div>
 
@@ -625,7 +625,7 @@ export default function FinFlowDemo() {
 							<p className="text-gray-600">
 								개인의 <span className="font-semibold text-purple-600">투자 성향과 목표</span>에 맞는
 								<br />
-								최적화된 포트폴리오를 제안한다.
+								최적화된 포트폴리오를 제안합니다.
 							</p>
 						</div>
 					</div>
@@ -636,7 +636,7 @@ export default function FinFlowDemo() {
 			<footer className="bg-gray-900 text-white py-8">
 				<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 					<div className="text-lg font-bold mb-2">FinFlow</div>
-					<p className="text-gray-400 text-sm">© 2025 FinFlow. 강화학습 기반 포트폴리오 최적화 플랫폼</p>
+					<p className="text-gray-400 text-sm">© 2025 FinFlow. 강화학습 기반 포트폴리오 최적화 플랫폼입니다.</p>
 				</div>
 			</footer>
 		</div>
