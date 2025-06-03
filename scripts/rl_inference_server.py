@@ -22,6 +22,8 @@ import torch.nn.functional as F
 from datetime import datetime, timedelta
 import yfinance as yf
 import warnings
+import time
+import random
 
 warnings.filterwarnings("ignore")
 
@@ -2034,6 +2036,57 @@ async def get_market_status():
         raise HTTPException(
             status_code=500, detail="시장 데이터 조회 중 오류가 발생했습니다."
         )
+
+
+def download_with_retry(ticker: str, **kwargs) -> pd.DataFrame:
+    """재시도 로직이 있는 yfinance 다운로드 함수"""
+    max_retries = 3
+    base_delay = 1.0
+
+    for attempt in range(max_retries):
+        try:
+            # 티커 객체 생성 시 세션 사용
+            if session is not None:
+                ticker_obj = yf.Ticker(ticker, session=session)
+            else:
+                ticker_obj = yf.Ticker(ticker)
+
+            # 데이터 다운로드
+            data = ticker_obj.history(**kwargs)
+
+            if not data.empty:
+                print(f"✓ {ticker} 데이터 다운로드 성공 (시도 {attempt + 1})")
+                return data
+            else:
+                print(f"✗ {ticker} 데이터 없음 (시도 {attempt + 1})")
+
+        except Exception as e:
+            print(f"✗ {ticker} 다운로드 실패 (시도 {attempt + 1}): {e}")
+
+        # 재시도 전 대기 (지수 백오프)
+        if attempt < max_retries - 1:
+            delay = base_delay * (2**attempt) + random.uniform(0, 1)
+            print(f"  {delay:.1f}초 후 재시도...")
+            time.sleep(delay)
+
+    print(f"✗ {ticker} 모든 시도 실패")
+    return pd.DataFrame()
+
+
+def download_multiple_tickers(tickers: List[str], **kwargs) -> Dict[str, pd.DataFrame]:
+    """여러 티커를 개별적으로 다운로드"""
+    results = {}
+
+    for ticker in tickers:
+        # 요청 간 간격 추가 (Rate Limiting 방지)
+        if len(results) > 0:
+            time.sleep(0.5)
+
+        data = download_with_retry(ticker, **kwargs)
+        if not data.empty:
+            results[ticker] = data
+
+    return results
 
 
 if __name__ == "__main__":
