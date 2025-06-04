@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiUrl, getDefaultFetchOptions } from "@/lib/config";
 
 export async function GET(request: NextRequest) {
 	try {
 		// 백엔드 서버로 요청 전달
-		const response = await fetch("http://localhost:8000/market-status", {
+		const response = await fetch(createApiUrl("/market-status"), {
 			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			...getDefaultFetchOptions(),
 		});
 
 		if (!response.ok) {

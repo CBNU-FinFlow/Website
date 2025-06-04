@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { XAIData } from "@/lib/types";
+import { createApiUrl, getDefaultFetchOptions } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
 	try {
@@ -17,11 +18,9 @@ export async function POST(request: NextRequest) {
 		});
 
 		// 백엔드 XAI 서버 호출
-		const response = await fetch("http://localhost:8000/explain", {
+		const response = await fetch(createApiUrl("/explain"), {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			...getDefaultFetchOptions(),
 			body: JSON.stringify({
 				investment_amount: investmentAmount,
 				risk_tolerance: riskTolerance,

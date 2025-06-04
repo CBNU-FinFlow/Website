@@ -35,6 +35,43 @@ FinFlow UI는 강화학습 모델을 활용하여 동적 포트폴리오 배분�
 - yfinance (시장 데이터)
 - scikit-learn (XAI 분석)
 
+## 환경 설정
+
+### 환경 변수 설정
+
+프로젝트는 로컬 개발 환경과 프로덕션 환경을 모두 지원한다.
+
+#### 로컬 개발 환경 (.env.local 파일 생성)
+
+```bash
+# 백엔드 API 서버 URL
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+
+# 환경 구분
+NEXT_PUBLIC_ENVIRONMENT=development
+```
+
+#### 프로덕션 환경 (배포 시 환경 변수 설정)
+
+```bash
+# 백엔드 API 서버 URL
+NEXT_PUBLIC_API_BASE_URL=https://api.finflow.reo91004.com
+
+# 환경 구분
+NEXT_PUBLIC_ENVIRONMENT=production
+```
+
+#### 백엔드 서버 환경 변수
+
+```bash
+# CORS 허용 도메인 (쉼표로 구분)
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# 프로덕션 환경에서는
+CORS_ORIGINS=https://finflow.reo91004.com,https://www.finflow.reo91004.com
+ENVIRONMENT=production
+```
+
 ## 설치 및 실행
 
 ### 1. 프론트엔드 설정
@@ -43,6 +80,10 @@ FinFlow UI는 강화학습 모델을 활용하여 동적 포트폴리오 배분�
 # 의존성 설치
 npm install
 
+# 환경 변수 파일 생성 (로컬 개발용)
+echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000" > .env.local
+echo "NEXT_PUBLIC_ENVIRONMENT=development" >> .env.local
+
 # 개발 서버 실행
 npm run dev
 ```
@@ -50,6 +91,10 @@ npm run dev
 ### 2. 강화학습 모델 추론 서버 설정
 
 ```bash
+# 환경 변수 설정 (로컬 개발용)
+export CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"
+export ENVIRONMENT="development"
+
 # 추론 서버 시작 (자동으로 가상환경 생성 및 패키지 설치)
 ./scripts/start_rl_server.sh
 ```
@@ -66,11 +111,42 @@ source venv/bin/activate
 # 패키지 설치
 pip install -r requirements.txt
 
+# 환경 변수 설정
+export CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"
+export ENVIRONMENT="development"
+
 # 서버 실행
 python rl_inference_server.py
 ```
 
-### 3. finflow-rl 프로젝트 연동
+### 3. 프로덕션 배포
+
+#### 프론트엔드 빌드 및 배포
+
+```bash
+# 환경 변수 설정
+export NEXT_PUBLIC_API_BASE_URL=https://api.finflow.reo91004.com
+export NEXT_PUBLIC_ENVIRONMENT=production
+
+# 프로덕션 빌드
+npm run build
+
+# 프로덕션 서버 실행
+npm run start
+```
+
+#### 백엔드 서버 배포
+
+```bash
+# 환경 변수 설정
+export CORS_ORIGINS="https://finflow.reo91004.com,https://www.finflow.reo91004.com"
+export ENVIRONMENT="production"
+
+# 서버 실행
+python scripts/rl_inference_server.py
+```
+
+### 4. finflow-rl 프로젝트 연동
 
 1. [finflow-rl](https://github.com/reo91004/finflow-rl) 프로젝트를 클론한다:
 
@@ -90,7 +166,9 @@ git clone https://github.com/reo91004/finflow-rl.git
 
 ## 사용법
 
-1. 웹 브라우저에서 `http://localhost:3000` 접속
+1. 웹 브라우저에서 접속
+   - 로컬: `http://localhost:3000`
+   - 프로덕션: `https://finflow.reo91004.com`
 2. 투자 금액 입력
 3. "지금 바로 시작하기" 버튼 클릭
 4. AI 분석 완료 후 추천 포트폴리오 확인

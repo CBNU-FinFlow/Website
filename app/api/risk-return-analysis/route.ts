@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiUrl, getDefaultFetchOptions } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
 
 		// 백엔드 서버로 요청 전달
-		const response = await fetch("http://localhost:8000/risk-return-analysis", {
+		const response = await fetch(createApiUrl("/risk-return-analysis"), {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			...getDefaultFetchOptions(),
 			body: JSON.stringify(body),
 		});
 

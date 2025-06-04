@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PortfolioAllocation, PerformanceMetrics, PredictionResult } from "@/lib/types";
+import { createApiUrl, getDefaultFetchOptions } from "@/lib/config";
 
 // 강화학습 모델 서버와 통신하는 함수
 async function callRLModel(investmentAmount: number): Promise<PredictionResult> {
 	try {
 		// 실제 강화학습 모델 서버 호출
 		// 여기서는 finflow-rl 프로젝트의 추론 서버를 호출한다고 가정
-		const response = await fetch("http://localhost:8000/predict", {
+		const response = await fetch(createApiUrl("/predict"), {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			...getDefaultFetchOptions(),
 			body: JSON.stringify({
 				investment_amount: investmentAmount,
 				// 추가 파라미터들 (리스크 선호도, 투자 기간 등)

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import glob
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -213,13 +213,23 @@ class ActorCritic(nn.Module):
 
 app = FastAPI(title="FinFlow RL Inference Server", version="1.0.0")
 
+# 환경 변수에서 CORS 설정 읽기
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
+# 프로덕션 환경에서는 추가 도메인 허용
+if os.getenv("ENVIRONMENT") == "production":
+    CORS_ORIGINS.extend(
+        ["https://finflow.reo91004.com", "https://www.finflow.reo91004.com"]
+    )
+
+print(f"CORS 허용 도메인: {CORS_ORIGINS}")
+
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],  # Next.js 개발 서버
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { PortfolioAllocation, PerformanceMetrics, QuickMetrics } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { PortfolioAllocation, PerformanceMetrics, QuickMetrics, XAIData } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import PortfolioVisualization from "@/components/PortfolioVisualization";
 import AnalysisModal from "@/components/AnalysisModal";
-import { XAIData } from "@/lib/types";
+import { createApiUrl, getDefaultFetchOptions, config } from "@/lib/config";
 
 export default function FinFlowDemo() {
 	const [investmentAmount, setInvestmentAmount] = useState("");
@@ -57,6 +57,14 @@ export default function FinFlowDemo() {
 	const [isLoadingXAI, setIsLoadingXAI] = useState(false);
 	const [xaiMethod, setXaiMethod] = useState<"fast" | "accurate">("fast");
 	const [xaiProgress, setXaiProgress] = useState(0);
+
+	// 환경 설정 디버깅 (개발 시에만)
+	useEffect(() => {
+		if (config.environment === "development") {
+			console.log("🔧 FinFlow 환경 설정:", config.debug);
+			console.log("📡 API 기본 URL:", config.api.baseUrl);
+		}
+	}, []);
 
 	// 투자 금액 포맷팅 함수
 	const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,11 +138,9 @@ export default function FinFlowDemo() {
 				await new Promise((resolve) => setTimeout(resolve, step.delay));
 			}
 
-			const response = await fetch("http://localhost:8000/predict", {
+			const response = await fetch(createApiUrl("/predict"), {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				...getDefaultFetchOptions(),
 				body: JSON.stringify({
 					investment_amount: Number.parseInt(investmentAmount),
 					risk_tolerance: riskTolerance,
