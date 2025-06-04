@@ -46,3 +46,8 @@ scripts/venv/
 temp.txt
 
 scripts/server.log
+
+logs
+
+# Python bytecode cache
+**/__pycache__/
