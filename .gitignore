@@ -51,3 +51,5 @@ logs
 
 # Python bytecode cache
 **/__pycache__/
+
+build.tar.gz
