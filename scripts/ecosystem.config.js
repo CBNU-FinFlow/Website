@@ -11,7 +11,10 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
-        PORT: 8000
+        PORT: 8000,
+        // 환경 변수 추가
+        ENVIRONMENT: 'production',
+        CORS_ORIGINS: 'https://finflow.reo91004.com,https://www.finflow.reo91004.com'
       },
       error_file: '/var/www/finflow/logs/backend-error.log',
       out_file: '/var/www/finflow/logs/backend-out.log',

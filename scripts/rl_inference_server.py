@@ -219,12 +219,18 @@ CORS_ORIGINS = os.getenv(
 ).split(",")
 
 # 프로덕션 환경에서는 추가 도메인 허용
-if os.getenv("ENVIRONMENT") == "production":
-    CORS_ORIGINS.extend(
-        ["https://finflow.reo91004.com", "https://www.finflow.reo91004.com"]
-    )
+environment = os.getenv("ENVIRONMENT", "development")
+print(f"현재 환경: {environment}")  # 디버깅용
 
-print(f"CORS 허용 도메인: {CORS_ORIGINS}")
+if environment == "production":
+    production_origins = [
+        "https://finflow.reo91004.com", 
+        "https://www.finflow.reo91004.com"
+    ]
+    CORS_ORIGINS.extend(production_origins)
+    print(f"프로덕션 도메인 추가: {production_origins}")
+
+print(f"최종 CORS 허용 도메인: {CORS_ORIGINS}")
 
 # CORS 설정 추가
 app.add_middleware(
