@@ -9,8 +9,8 @@ export const getApiBaseUrl = (): string => {
 
 	// 2순위: NODE_ENV 기반 자동 판단
 	if (process.env.NODE_ENV === "production") {
-		// 프로덕션 환경에서는 finflow.reo91004.com의 API 서버를 가정
-		return "https://api.finflow.reo91004.com";
+		// API 서브도메인 대신 같은 도메인의 다른 포트 사용
+		return "https://finflow.reo91004.com:8000";
 	}
 
 	// 3순위: 개발 환경 기본값
