@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, Brain, Activity, BarChart3, TrendingUp, Target, DollarSign, Shield, PieChart, CheckCircle, Info, AlertTriangle, TrendingDown, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,8 @@ const getHorizonLabel = (horizon: string) => {
 	return "장기 (2년 이상)";
 };
 
-export default function AnalysisResultsPage() {
+// 실제 분석 결과를 보여주는 컴포넌트
+function AnalysisResultsContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(true);
@@ -927,5 +928,22 @@ export default function AnalysisResultsPage() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function AnalysisResultsPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+					<div className="text-center space-y-4">
+						<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+						<p className="text-gray-600">결과를 준비하고 있습니다..</p>
+					</div>
+				</div>
+			}
+		>
+			<AnalysisResultsContent />
+		</Suspense>
 	);
 }
