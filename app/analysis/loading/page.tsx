@@ -105,12 +105,31 @@ export default function AnalysisLoadingPage() {
 			<div className="max-w-2xl w-full space-y-8">
 				{/* 헤더 */}
 				<div className="text-center space-y-4">
-					<div className="w-20 h-20 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-						<Brain className="w-10 h-10 text-white" />
+					<div className="w-20 h-20 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center relative overflow-hidden">
+						<Brain className="w-10 h-10 text-white relative z-10" />
+						{/* 반짝이는 빛 효과 */}
+						<div
+							className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full animate-[shimmer_2s_infinite]"
+							style={{
+								animation: "shimmer 2s infinite",
+							}}
+						/>
 					</div>
 					<h1 className="text-3xl font-bold text-gray-900">AI 포트폴리오 분석</h1>
 					<p className="text-gray-600">투자 금액 {Number(investmentAmount).toLocaleString()}원을 분석하고 있습니다..</p>
 				</div>
+
+				{/* 커스텀 애니메이션 스타일 */}
+				<style jsx>{`
+					@keyframes shimmer {
+						0% {
+							transform: translateX(-100%) skewX(-12deg);
+						}
+						100% {
+							transform: translateX(200%) skewX(-12deg);
+						}
+					}
+				`}</style>
 
 				{/* 프로그레스 바 */}
 				<div className="space-y-4">
