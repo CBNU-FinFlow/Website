@@ -152,9 +152,9 @@ function AnalysisResultsContent() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+			<div className="fixed inset-0 bg-gray-50 flex items-center justify-center z-50">
 				<div className="text-center space-y-4">
-					<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+					<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
 					<p className="text-gray-600">결과를 준비하고 있습니다..</p>
 				</div>
 			</div>
@@ -935,9 +935,9 @@ export default function AnalysisResultsPage() {
 	return (
 		<Suspense
 			fallback={
-				<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="fixed inset-0 bg-gray-50 flex items-center justify-center z-50">
 					<div className="text-center space-y-4">
-						<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+						<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
 						<p className="text-gray-600">결과를 준비하고 있습니다..</p>
 					</div>
 				</div>

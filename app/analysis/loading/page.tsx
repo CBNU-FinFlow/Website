@@ -102,7 +102,7 @@ function AnalysisLoadingContent() {
 	const currentStepData = analysisSteps[currentStep];
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+		<div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
 			<div className="max-w-2xl w-full space-y-8">
 				{/* 헤더 */}
 				<div className="text-center space-y-4">
@@ -206,7 +206,7 @@ export default function AnalysisLoadingPage() {
 	return (
 		<Suspense
 			fallback={
-				<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+				<div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
 					<div className="max-w-2xl w-full space-y-8">
 						<div className="text-center space-y-4">
 							<div className="w-20 h-20 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
