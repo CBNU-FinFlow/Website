@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Brain, Activity, BarChart3, TrendingUp, Shield, CheckCircle } from "lucide-react";
 
@@ -47,7 +47,8 @@ const analysisSteps = [
 	},
 ];
 
-export default function AnalysisLoadingPage() {
+// 실제 로딩 화면을 보여주는 컴포넌트
+function AnalysisLoadingContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [currentStep, setCurrentStep] = useState(0);
@@ -198,5 +199,27 @@ export default function AnalysisLoadingPage() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function AnalysisLoadingPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+					<div className="max-w-2xl w-full space-y-8">
+						<div className="text-center space-y-4">
+							<div className="w-20 h-20 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+								<Brain className="w-10 h-10 text-white" />
+							</div>
+							<h1 className="text-3xl font-bold text-gray-900">AI 포트폴리오 분석</h1>
+							<p className="text-gray-600">분석을 준비하고 있습니다..</p>
+						</div>
+					</div>
+				</div>
+			}
+		>
+			<AnalysisLoadingContent />
+		</Suspense>
 	);
 }
