@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Brain, Activity, Target, BarChart3, PieChart, TrendingUp, Eye, Info } from "lucide-react";
 import { XAIData } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import HelpTooltip from "@/components/ui/HelpTooltip";
 
 interface XAISectionProps {
 	onXAIAnalysis: (method: "fast" | "accurate") => void;
@@ -37,10 +38,15 @@ const ASSET_COLORS: { [key: string]: string } = {
 	JNJ: "#D50000",
 	PG: "#005CA9",
 	V: "#1434CB",
+	META: "#1877F2",
+	NVDA: "#76B900",
+	NFLX: "#E50914",
+	CRM: "#00A1E0",
+	ORCL: "#F80000",
+	ADBE: "#FF0000",
 };
 
 export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiProgress }: XAISectionProps) {
-	// 로딩 상태일 때
 	if (isLoadingXAI) {
 		return (
 			<Card className="border border-gray-200 bg-white">
@@ -70,9 +76,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 		);
 	}
 
-	// XAI 데이터가 있을 때 (분석 결과 표시)
 	if (xaiData) {
-		// Feature Importance 차트용 데이터 변환
 		const featureData = xaiData.feature_importance.map((item, index) => ({
 			name: `${item.asset_name}-${item.feature_name}`,
 			importance: item.importance_score,
@@ -81,8 +85,7 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 			color: FEATURE_COLORS[item.feature_name] || "#6B7280",
 		}));
 
-		// Attention Weights 네트워크 시각화용 데이터
-		const topAttentionWeights = xaiData.attention_weights.sort((a, b) => b.weight - a.weight).slice(0, 10);
+		const topAttentionWeights = (xaiData.attention_weights || []).sort((a, b) => b.weight - a.weight).slice(0, 10);
 
 		return (
 			<Card className="border border-gray-200 bg-white">
@@ -95,14 +98,17 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 				</CardHeader>
 				<CardContent className="p-6 space-y-6">
 					<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-						{/* Feature Importance Chart */}
 						<Card>
 							<CardHeader>
-								<CardTitle className="text-lg flex items-center">
-									<TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
-									영향도 분석
+								<CardTitle className="text-lg flex items-center space-x-2">
+									<TrendingUp className="w-4 h-4 text-blue-600" />
+									<span>영향도 분석</span>
+									<HelpTooltip
+										title="영향도 분석 (Feature Importance Analysis)"
+										description="AI 모델이 포트폴리오를 구성할 때 각 기술적 지표가 얼마나 중요하게 작용했는지 보여준다. 값이 높을수록 해당 지표가 투자 결정에 큰 영향을 미쳤다는 의미다. MACD, RSI, 거래량 등 다양한 기술적 분석 도구들의 상대적 중요도를 파악할 수 있다."
+									/>
 								</CardTitle>
-								<CardDescription className="text-sm">각 기술적 지표가 포트폴리오 결정에 미친 영향력입니다.</CardDescription>
+								<CardDescription className="text-sm">각 기술적 지표가 포트폴리오 결정에 미친 영향력이다.</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="h-64">
@@ -129,7 +135,6 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 									</ResponsiveContainer>
 								</div>
 
-								{/* 범례 */}
 								<div className="mt-3 flex flex-wrap gap-1">
 									{Object.entries(FEATURE_COLORS)
 										.slice(0, 6)
@@ -143,14 +148,17 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 							</CardContent>
 						</Card>
 
-						{/* Attention Weights Visualization */}
 						<Card>
 							<CardHeader>
-								<CardTitle className="text-lg flex items-center">
-									<Eye className="w-4 h-4 mr-2 text-green-600" />
-									주목도 네트워크
+								<CardTitle className="text-lg flex items-center space-x-2">
+									<Eye className="w-4 h-4 text-green-600" />
+									<span>주목도 네트워크</span>
+									<HelpTooltip
+										title="주목도 네트워크 (Attention Network)"
+										description="AI 모델이 종목 간의 상호작용을 얼마나 중요하게 고려했는지 나타낸다. 높은 주목도는 두 종목이 서로 강하게 연관되어 포트폴리오 결정에 함께 영향을 미쳤음을 의미한다. 이를 통해 AI가 어떤 종목들을 하나의 그룹으로 인식했는지 알 수 있다."
+									/>
 								</CardTitle>
-								<CardDescription className="text-sm">AI가 주목한 자산들 간의 관계입니다.</CardDescription>
+								<CardDescription className="text-sm">AI가 주목한 자산들 간의 관계다.</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="space-y-3 max-h-64 overflow-y-auto">
@@ -161,15 +169,12 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 													<div className="w-3 h-3 rounded-full" style={{ backgroundColor: ASSET_COLORS[weight.from_asset] || "#6B7280" }} />
 													<span className="font-medium text-gray-800 text-sm">{weight.from_asset}</span>
 												</div>
-
 												<div className="text-gray-400 text-sm">→</div>
-
 												<div className="flex items-center space-x-1">
 													<div className="w-3 h-3 rounded-full" style={{ backgroundColor: ASSET_COLORS[weight.to_asset] || "#6B7280" }} />
 													<span className="font-medium text-gray-800 text-sm">{weight.to_asset}</span>
 												</div>
 											</div>
-
 											<div className="flex items-center space-x-2">
 												<div className="w-16 bg-gray-200 rounded-full h-1.5">
 													<div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${weight.weight * 100}%` }} />
@@ -183,29 +188,30 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						</Card>
 					</div>
 
-					{/* AI 설명 텍스트 */}
 					<Card>
 						<CardHeader>
-							<CardTitle className="text-lg flex items-center">
-								<Info className="w-4 h-4 mr-2 text-orange-600" />
-								AI 설명
+							<CardTitle className="text-lg flex items-center space-x-2">
+								<Info className="w-4 h-4 text-orange-600" />
+								<span>AI 설명</span>
+								<HelpTooltip
+									title="AI 설명 (AI Explanation)"
+									description="AI 모델이 왜 이런 포트폴리오를 구성했는지에 대한 자연어 설명이다. 기술적 분석 결과, 시장 상황, 투자 성향 등을 종합하여 사람이 이해하기 쉬운 형태로 투자 논리를 설명한다. 투자 결정의 투명성과 신뢰성을 높이는 핵심 기능이다."
+								/>
 							</CardTitle>
-							<CardDescription className="text-sm">포트폴리오 구성에 대한 AI의 상세한 설명입니다.</CardDescription>
+							<CardDescription className="text-sm">포트폴리오 구성에 대한 AI의 상세한 설명이다.</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="bg-blue-50 rounded-lg p-4">
 								<pre className="text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">{xaiData.explanation_text}</pre>
 							</div>
-
 							<div className="mt-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
 								<p className="text-xs text-amber-800">
-									<strong>참고:</strong> 이 설명은 AI 모델의 내부 계산을 바탕으로 생성되었으며, 실제 시장 상황과 다를 수 있습니다.
+									<strong>참고:</strong> 이 설명은 AI 모델의 내부 계산을 바탕으로 생성되었으며, 실제 시장 상황과 다를 수 있다. 투자에는 원금 손실 위험이 있으므로 신중한 판단이 필요하다.
 								</p>
 							</div>
 						</CardContent>
 					</Card>
 
-					{/* 새로운 분석 버튼 */}
 					<div className="flex justify-center pt-4">
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
 							<Button onClick={() => onXAIAnalysis("fast")} className="h-12 bg-blue-600 hover:bg-blue-700 text-white">
@@ -227,7 +233,6 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 		);
 	}
 
-	// 초기 상태 (분석 시작 전)
 	return (
 		<Card className="border border-gray-200 bg-white">
 			<CardHeader>
@@ -310,7 +315,6 @@ export default function XAISection({ onXAIAnalysis, isLoadingXAI, xaiData, xaiPr
 						</div>
 					</div>
 
-					{/* AI 분석 프로세스 설명 */}
 					<div className="max-w-4xl mx-auto">
 						<h4 className="font-bold text-gray-900 mb-6">AI 분석 프로세스</h4>
 						<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
